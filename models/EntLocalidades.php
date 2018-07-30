@@ -167,14 +167,25 @@ class EntLocalidades extends \yii\db\ActiveRecord
     public function fields(){
         $fields = parent::fields();
         
-        $fields[] = 'usuario';
-        unset($fields['id_localidad'], $fields['id_estado']);
+        /**
+         * Se calculan y se regresan en el json de respuesta
+         */
+        $fields[] = 'bStatusLocalidad';
+        $fields[] = 'moneda';
+        $fields[] = 'estado';
+        $fields[] = 'wrkTareas';
+        $fields[] = 'entEstatuses';
+
+        unset($fields['b_status_localidad'], $fields['id_estado'], $fields['id_moneda'], $fields['txt_estatus']);
 
         return $fields;
     }
 
+    /**
+     * Hasta que se mandadn por parametro en la url se calpulan
+     */
     public function extraFields(){
 
-        return ['usuario'];
+        return ['bStatusLocalidad', 'moneda', 'estado', 'wrkTareas'];
     }
 }

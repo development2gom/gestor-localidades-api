@@ -11,6 +11,8 @@ use app\models\EntProductosSearch;
 use app\models\EntLocalidadesSearch;
 use app\models\EntLocalidades;
 use yii\web\HttpException;
+use app\models\ModUsuariosEntUsuarios;
+use app\models\ConstantesWeb;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -36,12 +38,20 @@ class ApiController extends Controller
         ];
     }
 
-    public function actionLocalidades(){
+    public function actionLocalidades($token = null, $page = 0){
         
-        $modelSearch = new EntLocalidadesSearch();
-        $dataProvider = $modelSearch->search(Yii::$app->getRequest()->get());
+        if($token){
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
 
-        return $dataProvider;
+            if($user){
+                $modelSearch = new EntLocalidadesSearch();
+                $dataProvider = $modelSearch->search(Yii::$app->getRequest()->get(), $page);
+
+                return $dataProvider;
+            }else{
+                throw new HttpException(400, "Usuario no disponible");
+            }
+        }
     }
 
     public function actionCreate(){

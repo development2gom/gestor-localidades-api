@@ -40,14 +40,20 @@ class EntLocalidadesSearch extends EntLocalidades
      *
      * @return ActiveDataProvider
      */
-    public function search($params)
+    public function search($params, $page)
     {
+        $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$params['token']])->one();
+
         $query = EntLocalidades::find();
 
         // add conditions that should always apply here
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
+            'pagination' => [
+                'pageSize' => 20,
+                'page' => $page
+            ],
         ]);
 
         $this->load($params, '');
@@ -56,6 +62,20 @@ class EntLocalidadesSearch extends EntLocalidades
             // uncomment the following line if you do not want to return any records when validation fails
             // $query->where('0=1');
             return $dataProvider;
+        }
+
+        if($user->txt_auth_item == ConstantesWeb::ABOGADO){
+            // grid filtering conditions
+            $query->andFilterWhere([
+                'id_usuario' => $user->id_usuario,
+                'id_localidad' => $this->id_localidad
+            ]);
+        }
+
+        if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
+            $padre = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
+            $query->andFilterWhere(['id_usuario'=>$padre->id_usuario_padre])
+                ->orFilterWhere(['id_usuario' => $user->id_usuario]);            
         }
 
         // grid filtering conditions
