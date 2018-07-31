@@ -17,6 +17,7 @@ use app\models\Utils;
 use app\config\ConstantesDropbox;
 use app\models\Dropbox;
 use app\models\EntEstatus;
+use app\models\WrkUsuarioUsuarios;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -159,7 +160,7 @@ class ApiController extends Controller
         }
     }
 
-    public function actionUpdate($token = null, $id = 0){
+    public function actionUpdate($token = null, $cms = null){
         $request = Yii::$app->request;
         //$request->getBodyParam('id');
         // returns all parameters
@@ -170,7 +171,7 @@ class ApiController extends Controller
         /**
          * Verificar si trae algun valor el token para buscar al usuario y el id para buscar la localidad
          */
-        if($token && $id){
+        if($token && $cms){
             $estatus = new EntEstatus();
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
 
@@ -187,7 +188,14 @@ class ApiController extends Controller
                      * Si el usuario es abogado, buscar la localidad creada por el abogado
                      */
                     if($user->txt_auth_item == ConstantesWeb::ABOGADO){
-                        $model = EntLocalidades::find()->where(['id_localidad'=>$id, 'id_usuario'=>$user->id_usuario])->one();
+                        $model = EntLocalidades::find()->where(['cms'=>$cms, 'id_usuario'=>$user->id_usuario])->one();
+                    }
+
+                    if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
+                        $padre = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
+                        $model = EntLocalidades::find()->where(['cms'=>$cms])
+                            ->andWhere(['id_usuario'=>$padre->id_usuario_padre])
+                            ->orWhere(['id_usuario'=>$user->id_usuario])->one();
                     }
 
                     /**
