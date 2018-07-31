@@ -43,6 +43,7 @@ class ApiController extends Controller
             'delete' => ['DELETE'],
 
             'asignar-usuario-localidad' => ['PUT', 'PATCH'],
+            'eliminar-usuario-localidad' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -326,6 +327,15 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se encontro la localidad");
             }
             
+            /**
+             * eliminar relacion si ya existe una con la localidad
+             */
+            $relUserLoc = WrkUsuariosLocalidades::find()->where(['id_localidad'=>$localidad->id_localidad])->one();
+            $relUserLoc->delete();
+
+            /**
+             * Crear nueva relacion y guardar
+             */
             $relUserLocalidad = new WrkUsuariosLocalidades();
             $relUserLocalidad->id_localidad = $localidad->id_localidad;
             $relUserLocalidad->id_usuario = $user->id_usuario;
@@ -335,6 +345,52 @@ class ApiController extends Controller
                 return $localidad;
             }else{
                 throw new HttpException(400, "No se pudo guardar la relacion");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Eliminar asignacion de usuario director de localidad como responsable
+     */
+    public function actionEliminarUsuarioLocalidad($tokenU = null, $cms = null){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($tokenU && $cms){
+            /**
+             * Buscar modelos
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'txt_auth_item'=>ConstantesWeb::CLIENTE, 'id_status'=>2])->one();
+            $localidad = EntLocalidades::find()->where(['cms'=>$cms])->one();
+
+            /**
+             * Regresar error 400 si no esta el usuario
+             */
+            if(!$user){
+                throw new HttpException(400, "El usuario no esta disponible");
+            }
+            /**
+             * Regresar error 400 si no esta la localidad
+             */
+            if(!$localidad){
+                throw new HttpException(400, "No se encontro la localidad");
+            }
+            
+            /**
+             * Buscar relacion y eliminar
+             */
+            $relUserLocalidad = WrkUsuariosLocalidades::find()->where(['id_usuario'=>$user->id_usuario, 'id_localidad'=>$localidad->id_localidad])->one();
+            if($relUserLocalidad){
+                if($relUserLocalidad->delete()){
+
+                    return $localidad;
+                }else{
+                    throw new HttpException(400, "No se pudo eliminar la relación");
+                }
+            }else{
+                throw new HttpException(400, "No se encuentra esa relación");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");

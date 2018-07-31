@@ -175,9 +175,17 @@ class EntLocalidades extends \yii\db\ActiveRecord
     {
         $idResponsable = WrkUsuariosLocalidades::find()->where(['id_localidad'=>$this->id_localidad])->one();
         //$idResponsable = $this->hasOne(WrkUsuariosLocalidades::className(), ['id_localidad' => 'id_localidad']);
-        $responsable = ModUsuariosEntUsuarios::find()->where(['id_usuario'=>$idResponsable->id_usuario])->one();
+        if($idResponsable){
+            $responsable = ModUsuariosEntUsuarios::find()->where(['id_usuario'=>$idResponsable->id_usuario])->one();
 
-        return $responsable;
+            if($responsable){
+                return $responsable;
+            }else{
+                return null;
+            }
+        }else{
+            return null;
+        } 
     }
 
     public function fields(){
