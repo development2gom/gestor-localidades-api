@@ -42,6 +42,9 @@ class EntLocalidadesSearch extends EntLocalidades
      */
     public function search($params, $page)
     {
+        /**
+         * Buscar al usuario con el tonken 
+         */
         $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$params['token']])->one();
 
         $query = EntLocalidades::find();
@@ -64,6 +67,9 @@ class EntLocalidadesSearch extends EntLocalidades
             return $dataProvider;
         }
 
+        /**
+         * Filtar localidades si el usuario es abogado
+         */
         if($user->txt_auth_item == ConstantesWeb::ABOGADO){
             // grid filtering conditions
             $query->andFilterWhere([
@@ -72,18 +78,27 @@ class EntLocalidadesSearch extends EntLocalidades
             ]);
         }
 
+        /**
+         * Filtar localidades si el usuario es asistente
+         */
         if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
             $padre = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
             $query->andFilterWhere(['id_usuario'=>$padre->id_usuario_padre])
                 ->orFilterWhere(['id_usuario' => $user->id_usuario]);            
         }
 
+        /**
+         * Filtar localidades si el usuario es cliente
+         */
         if($user->txt_auth_item == ConstantesWeb::CLIENTE){
             $loc = WrkUsuariosLocalidades::find()->select('id_localidad')->where(['id_usuario'=>$user->id_usuario])->asArray();//var_dump($loc);exit;
             // grid filtering conditions
             $query->andFilterWhere(['in', 'id_localidad', $loc]);
         }
 
+        /**
+         * Filtar localidades si el usuario es colaborador
+         */
         if($user->txt_auth_item == ConstantesWeb::COLABORADOR){
             $grupoTrabajo = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
             $loc = WrkUsuariosLocalidades::find()->select('id_localidad')->where(['id_usuario'=>$grupoTrabajo->id_usuario_padre])->asArray();//var_dump($loc);exit;
