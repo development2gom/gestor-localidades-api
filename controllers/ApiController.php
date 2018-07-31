@@ -191,6 +191,9 @@ class ApiController extends Controller
                         $model = EntLocalidades::find()->where(['cms'=>$cms, 'id_usuario'=>$user->id_usuario])->one();
                     }
 
+                    /**
+                     * Si el usuario es asistente, buscar la localidad creada por el o su padre abogado
+                     */
                     if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
                         $padre = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
                         $model = EntLocalidades::find()->where(['cms'=>$cms])
@@ -242,29 +245,42 @@ class ApiController extends Controller
         }
     }
 
-    public function actionView($id){
-        $model = EntLocalidades::find()->where(['id_localidad'=>$id])->one();
+    public function actionView($cms = null){
+        /**
+         * Verificar si el parametro cms no es nulo 
+         */
+        if($cms){
+            /**
+             * Buscar localidad por el cms
+             */
+            $model = EntLocalidades::find()->where(['cms'=>$cms])->one();
 
-        if($model){
+            /**
+             * Verificar si la localidad existe 
+             */
+            if($model){
 
-            return $model;
-        }else{
-            throw new HttpException(400, "No se encontro la localidad");
-        }
-    }
-
-    public function actionDelete($id){
-        $model = EntLocalidades::find()->where(['id_localidad'=>$id])->one();
-
-        if($model){
-            if($model->delete()){
-
-                echo json_encode(array('status'=>'success', 'message'=>'Se elimino correctamente la localidad'),JSON_PRETTY_PRINT);
+                return $model;
             }else{
-                throw new HttpException(400, "No se pudo eliminar la localidad");
+                throw new HttpException(400, "No se encontro la localidad");
             }
         }else{
-            throw new HttpException(400, "No se encontro la localidad");
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
         }
     }
+
+    // public function actionDelete($id){
+    //     $model = EntLocalidades::find()->where(['id_localidad'=>$id])->one();
+
+    //     if($model){
+    //         if($model->delete()){
+
+    //             echo json_encode(array('status'=>'success', 'message'=>'Se elimino correctamente la localidad'),JSON_PRETTY_PRINT);
+    //         }else{
+    //             throw new HttpException(400, "No se pudo eliminar la localidad");
+    //         }
+    //     }else{
+    //         throw new HttpException(400, "No se encontro la localidad");
+    //     }
+    // }
 }
