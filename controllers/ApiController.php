@@ -13,6 +13,10 @@ use app\models\EntLocalidades;
 use yii\web\HttpException;
 use app\models\ModUsuariosEntUsuarios;
 use app\models\ConstantesWeb;
+use app\models\Utils;
+use app\config\ConstantesDropbox;
+use app\models\Dropbox;
+use app\models\EntEstatus;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -54,22 +58,56 @@ class ApiController extends Controller
         }
     }
 
-    public function actionCreate(){
-        if(!file_get_contents("php://input")){
-            echo "Error";
-        }
+    public function actionCreate($token = null){
+        $request = Yii::$app->request;
 
-        $json = json_decode(file_get_contents("php://input") );
+        if($token){
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
 
-        if(!isset($json->nombre)){
-            echo "Falta nombre";
-        }
+            if($user){
+                $model = new EntLocalidades();
+                $estatus = new EntEstatus();
 
-        $localidad = new EntLocalidades();
-        $localidad->txt_nombre = $json->nombre;
-        
-        if(!$localidad->save()){
-            print_r($localidad->errors);
+                if($model->load($request->bodyParams, "") && $estatus->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;
+
+                    $hoy = Utils::getFechaActual();
+                    $model->id_usuario = $user->id_usuario;
+                    $model->txt_token = Utils::generateToken('tok');
+                    $model->fch_creacion = $hoy;
+                    $model->fch_vencimiento_contratro = Utils::changeFormatDateInput($model->fch_vencimiento_contratro);
+                    $model->fch_asignacion = Utils::changeFormatDateInput($model->fch_asignacion);
+
+                    if($model->validate()){
+                        $dropbox = Dropbox::crearFolder(ConstantesDropbox::NOMBRE_CARPETA . $model->txt_nombre);
+                        $decodeDropbox = json_decode(trim($dropbox), true);
+
+                        if(isset($decodeDropbox['metadata'])){
+                            
+                            if($model->save()){
+                                if(!empty($request->getBodyParam('txt_estatus'))){
+                                    $estatus->id_localidad = $model->id_localidad;
+                                    if ($estatus->save()) {
+                                    
+                                        return $model;                                        
+                                    }else{
+                                        throw new HttpException(400, "No se guardo el estatus la localidad");
+                                    }
+                                }
+
+                                return $model;
+                            }else{
+                                throw new HttpException(400, "No se guardo la localidad");
+                            }
+                        }else{
+                            print_r($decodeDropbox);exit;
+                        }
+                    }else{
+                        echo "no validado";
+                    }exit;
+                }
+            }else{
+                throw new HttpException(400, "Usuario no disponible");
+            }
         }
     }
 
