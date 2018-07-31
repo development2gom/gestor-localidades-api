@@ -164,6 +164,22 @@ class EntLocalidades extends \yii\db\ActiveRecord
         return $this->hasMany(WrkTareas::className(), ['id_localidad' => 'id_localidad']);
     }
 
+    public function getUsuariosDirectores()
+    {
+        $directores = ModUsuariosEntUsuarios::find()->where(['txt_auth_item'=>ConstantesWeb::CLIENTE])->all();
+        
+        return $directores;
+    }
+
+    public function getUsuarioResponsable()
+    {
+        $idResponsable = WrkUsuariosLocalidades::find()->where(['id_localidad'=>$this->id_localidad])->one();
+        //$idResponsable = $this->hasOne(WrkUsuariosLocalidades::className(), ['id_localidad' => 'id_localidad']);
+        $responsable = ModUsuariosEntUsuarios::find()->where(['id_usuario'=>$idResponsable->id_usuario])->one();
+
+        return $responsable;
+    }
+
     public function fields(){
         $fields = parent::fields();
         
@@ -175,6 +191,8 @@ class EntLocalidades extends \yii\db\ActiveRecord
         $fields[] = 'estado';
         $fields[] = 'wrkTareas';
         $fields[] = 'entEstatuses';
+        $fields[] = 'usuariosDirectores';
+        $fields[] = 'usuarioResponsable';
 
         unset($fields['b_status_localidad'], $fields['id_estado'], $fields['id_moneda'], $fields['txt_estatus']);
 
