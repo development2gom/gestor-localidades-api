@@ -248,4 +248,15 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
     {
         return $this->hasMany(WrkTareasArchivadas::className(), ['id_tarea' => 'id_tarea'])->viaTable('wrk_usuarios_tareas_archivadas', ['id_usuario' => 'id_usuario']);
     }
+
+    public function fields(){
+        $fields = parent::fields();
+        
+        /**
+         * Se quitan los siguientes campos cuando se regresan en el json de respuesta
+         */
+        unset($fields['txt_auth_key'], $fields['txt_password_hash'], $fields['txt_password_reset_token'], $fields['txt_estatus']);
+
+        return $fields;
+    }
 }

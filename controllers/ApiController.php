@@ -328,10 +328,11 @@ class ApiController extends Controller
             }
             
             /**
-             * eliminar relacion si ya existe una con la localidad
+             * eliminar relacion si es que ya existe una con la localidad
              */
             $relUserLoc = WrkUsuariosLocalidades::find()->where(['id_localidad'=>$localidad->id_localidad])->one();
-            $relUserLoc->delete();
+            if($relUserLoc)
+                $relUserLoc->delete();
 
             /**
              * Crear nueva relacion y guardar
