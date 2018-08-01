@@ -49,6 +49,7 @@ class ApiController extends Controller
             'create-tarea' => ['POST'],
             'editar-nombre-tarea' => ['PUT', 'PATCH'],
             'asignar-usuario-tarea' => ['PUT', 'PATCH'],
+            'remover-usuario-tarea' => ['DELETE'],
         ];
     }
 
@@ -536,6 +537,54 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "El usuario no puede ser asignado a una localidad");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Quitar relación de usuario colaborador responsable de tarea
+     */
+    public function actionRemoverUsuarioTarea($token = null, $id = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $id){
+             /**
+             * Validar que el usuario exista y que sea colaborador
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::COLABORADOR])->one();
+
+            if($user){
+                /**
+                 * Buscar tarea por id
+                 */
+                $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                
+                if($tarea){
+                    /**
+                     * Buscar si ya hay alguien asignado a la tarea
+                     */
+                    $rel = WrkUsuariosTareas::find()->where(['id_tarea'=>$tarea->id_tarea, 'id_usuario'=>$user->id_usuario])->one();
+                    if($rel){
+                        /**
+                         * Eliminar la relacion existente
+                         */
+                        if($rel->delete()){
+
+                            return $tarea->localidad;
+                        }else{
+                            throw new HttpException(400, "No se pudo eliminar la relación");
+                        } 
+                    }else{
+                        throw new HttpException(400, "La tarea no tiene ninguna relación");
+                    }
+                }else{
+                    throw new HttpException(400, "La tarea no existe");
+                }
+            }else{
+
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
