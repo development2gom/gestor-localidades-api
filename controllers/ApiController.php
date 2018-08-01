@@ -19,6 +19,7 @@ use app\models\Dropbox;
 use app\models\EntEstatus;
 use app\models\WrkUsuarioUsuarios;
 use app\models\WrkUsuariosLocalidades;
+use app\models\WrkTareas;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -43,7 +44,9 @@ class ApiController extends Controller
             'delete' => ['DELETE'],
 
             'asignar-usuario-localidad' => ['PUT', 'PATCH'],
-            'eliminar-usuario-localidad' => ['PUT', 'PATCH'],
+            'eliminar-usuario-localidad' => ['DELETE'],
+            'create-tarea' => ['POST'],
+            'editar-nombre-tarea' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -392,6 +395,90 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "No se encuentra esa relación");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Crear tarea en una localidad tarea
+     */
+    public function actionCreateTarea($token = null, $cms = null){
+        $request = Yii::$app->request;
+
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que sea abogado, asistente o colaborador
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->one();
+
+            if($user){
+                $localidad = EntLocalidades::find()->where(['cms'=>$cms])->one();
+                if($localidad){
+                    $model = new WrkTareas();
+                    
+                    if($model->load($request->bodyParams, "")){
+                        /**
+                         * Asignar valores a la localidad que no estan en los params
+                         */
+                        $hoy = Utils::getFechaActual();
+                        $model->fch_creacion = $hoy;
+                        $model->id_localidad = $localidad->id_localidad;
+                        $model->id_usuario = $user->id_usuario;
+
+                        if($model->save()){
+                            
+                            return $localidad;
+                        }
+                    }else{
+                        throw new HttpException(400, "No hay datos para crear la tarea");
+                    }
+                }else{
+                    throw new HttpException(400, "No existe la localidad");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Editar el nombre de la tarea
+     */
+    public function actionEditarNombreTarea($token = null, $id = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $id){
+            /**
+             * Buscar usuario que sea abogado, asistente o colaborador
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+                ->one();
+
+            if($user){
+                $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                if($tarea){
+                    if($tarea->load($request->bodyParams, "")){
+                        if($tarea->save()){
+
+                        }
+                    }
+                }else{
+                    throw new HttpException(400, "La tarea no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
