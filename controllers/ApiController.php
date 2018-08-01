@@ -20,6 +20,7 @@ use app\models\EntEstatus;
 use app\models\WrkUsuarioUsuarios;
 use app\models\WrkUsuariosLocalidades;
 use app\models\WrkTareas;
+use app\models\WrkUsuariosTareas;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -47,6 +48,7 @@ class ApiController extends Controller
             'eliminar-usuario-localidad' => ['DELETE'],
             'create-tarea' => ['POST'],
             'editar-nombre-tarea' => ['PUT', 'PATCH'],
+            'asignar-usuario-tarea' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -459,7 +461,7 @@ class ApiController extends Controller
          */
         if($token && $id){
             /**
-             * Buscar usuario que sea abogado, asistente o colaborador
+             * Buscar usuario que sea abogado, asistente o director
              */
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
                 ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
@@ -479,6 +481,61 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Asignar un usuario colaborador a una tarea
+     */
+    public function actionAsignarUsuarioTarea($token = null, $id = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $id){
+            /**
+             * Validar que el usuario exista y que sea colaborador
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::COLABORADOR])->one();
+
+            if($user){
+                /**
+                 * Buscar tarea por id
+                 */
+                $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+
+                if($tarea){
+                    /**
+                     * Buscar si ya hay alguien asignado a la tarea
+                     */
+                    $rel = WrkUsuariosTareas::find()->where(['id_tarea'=>$tarea->id_tarea])->one();
+                    if($rel){
+                        /**
+                         * Eliminar la relacion existente
+                         */
+                        $rel->delete(); 
+                    }else{
+                        /**
+                         * Crear una nueva relacion colaborador/tarea y guardar
+                         */
+                        $nuevaRel = new WrkUsuariosTareas();
+                        $nuevaRel->id_usuario = $user->id_usuario;
+                        $nuevaRel->id_tarea = $tarea->id_tarea;
+
+                        if($nuevaRel->save()){
+
+                            return $tarea->localidad;
+                        }else{
+                            throw new HttpException(400, "No se pudo guardar la relacion entre usuario y tarea");
+                        }
+                    }
+                }else{
+                    throw new HttpException(400, "La tarea no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no puede ser asignado a una localidad");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
