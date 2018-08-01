@@ -153,4 +153,31 @@ class WrkTareas extends \yii\db\ActiveRecord
     {
         return $this->hasMany(ModUsuariosEntUsuarios::className(), ['id_usuario' => 'id_usuario'])->viaTable('wrk_usuarios_tareas', ['id_tarea' => 'id_tarea']);
     }
+
+    public function getUsuarioResponsableTarea()
+    {
+        $rel = wrkUsuariosTareas::find()->where(['id_tarea'=>$this->id_tarea])->one();
+        
+        if($rel){
+            $userResp = ModUsuariosEntUsuarios::find()->where(['id_usuario'=>$rel->id_usuario])->one();
+            if($userResp){
+                return $userResp;
+            }
+        }
+
+        return;
+    }
+
+    public function fields(){
+        $fields = parent::fields();
+        
+        /**
+         * Se calculan y se regresan en el json de respuesta
+         */
+        $fields[] = 'usuarioResponsableTarea';
+
+        unset($fields['id_tarea']);
+
+        return $fields;
+    }
 }
