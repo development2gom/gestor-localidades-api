@@ -249,13 +249,36 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
         return $this->hasMany(WrkTareasArchivadas::className(), ['id_tarea' => 'id_tarea'])->viaTable('wrk_usuarios_tareas_archivadas', ['id_usuario' => 'id_usuario']);
     }
 
+    public function getUsuariosHijos(){
+        $relHijos = WrkUsuarioUsuarios::find()->where(['id_usuario_padre'=>$this->id_usuario])->all();
+        
+        if($relHijos){
+            $arrayId = [];
+            $i = 0;
+
+            foreach($relHijos as $id){
+                $arrayId[$i] = $id->id_usuario_hijo;
+                $i++;
+            }
+
+            $hijos = ModUsuariosEntUsuarios::find()->where(['in', 'id_usuario', $arrayId])->all();
+            if($hijos){
+                return $hijos;
+            }
+        }
+
+        return;
+    }
+
     public function fields(){
         $fields = parent::fields();
         
+        $fields[] = 'usuariosHijos';
+
         /**
          * Se quitan los siguientes campos cuando se regresan en el json de respuesta
          */
-        unset($fields['txt_auth_key'], $fields['txt_password_hash'], $fields['txt_password_reset_token'], $fields['txt_estatus']);
+        unset($fields['txt_auth_key'], $fields['txt_password_hash'], $fields['txt_password_reset_token'], $fields['txt_estatus'], $fields['txt_apellido_materno']);
 
         return $fields;
     }

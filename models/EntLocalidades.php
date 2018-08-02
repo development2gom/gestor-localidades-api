@@ -180,12 +180,10 @@ class EntLocalidades extends \yii\db\ActiveRecord
 
             if($responsable){
                 return $responsable;
-            }else{
-                return null;
             }
-        }else{
-            return null;
-        } 
+        }
+
+        return;
     }
 
     public function fields(){
