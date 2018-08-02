@@ -21,6 +21,7 @@ use app\models\WrkUsuarioUsuarios;
 use app\models\WrkUsuariosLocalidades;
 use app\models\WrkTareas;
 use app\models\WrkUsuariosTareas;
+use yii\web\UploadedFile;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -50,6 +51,7 @@ class ApiController extends Controller
             'editar-nombre-tarea' => ['PUT', 'PATCH'],
             'asignar-usuario-tarea' => ['PUT', 'PATCH'],
             'remover-usuario-tarea' => ['DELETE'],
+            'responder-tarea' => ['POST'],
         ];
     }
 
@@ -585,6 +587,68 @@ class ApiController extends Controller
                 }
             }else{
 
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Responder tareas con archivo o texto
+     * 
+     * EJEMPLO CURL CON TAREA DE ARCHIVO
+     *  curl -H "Content-type: multipart/form-data" "http://localhost/gestor-localidades-api/web/api/responder-tarea?id=114" -X POST -F 'fileTarea=@create.txt'
+     * 
+     * ELEMPLO CURL CON TAREA DE TEXTO
+     * curl -H "Content-type: application/json" "http://localhost/gestor-localidades-api/web/api/responder-tarea?id=95" -X POST -d "{\"txt_tarea\":\"qwerty qwerty\"}"
+     */
+    public function actionResponderTarea($id = 0){
+        $request = Yii::$app->request;
+        //print_r($_FILES);exit;
+        
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($id){
+            /**
+             * Buscar tarea por id
+             */
+            $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+            $localidad = $tarea->localidad;
+
+            if($tarea){
+                if($tarea->id_tipo == ConstantesWeb::TAREA_ARCHIVO){
+                    $fileDropbox = UploadedFile::getInstanceByName('fileTarea');
+
+                    if($fileDropbox){
+                        $dropbox = Dropbox::subirArchivo($localidad->txt_nombre, $fileDropbox);
+                        $decodeDropbox = json_decode(trim($dropbox), TRUE);
+
+                        if(isset($decodeDropbox['path_display'])){
+                            $tarea->txt_path = $decodeDropbox['path_display'];
+                        }else{
+                            throw new HttpException(400, "No se guardo correctamente el archivo en dropbox");
+                        }
+                    }else{
+                        throw new HttpException(400, "No se cargo ningun archivo");
+                    }
+                }else if($tarea->id_tipo == ConstantesWeb::TAREA_ABIERTO){
+                    if($tarea->load($request->bodyParams, "")){
+                        
+                    }else{
+                        throw new HttpException(400, "No hay datos para responder la tarea");
+                    }
+                }else{
+                    throw new HttpException(400, "No se definio el tipo de tarea");
+                }
+
+                $tarea->fch_actualizacion = date("Y-m-d H:i:s");
+                if($tarea->save()){
+                    
+                    return $localidad;
+                }
+            }else{
+                throw new HttpException(400, "La tarea no existe");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");

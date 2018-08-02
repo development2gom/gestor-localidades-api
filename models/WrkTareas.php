@@ -34,6 +34,8 @@ use Yii;
  */
 class WrkTareas extends \yii\db\ActiveRecord
 {
+    public $file;
+
     /**
      * {@inheritdoc}
      */
