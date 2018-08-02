@@ -61,6 +61,8 @@ class ApiController extends Controller
             'completar-tarea' => ['PUT', 'PATCH'],
             'archivar-localidad' => ['PUT', 'PATCH'],
             'desarchivar-localidad' => ['PUT', 'PATCH'],
+            'descargar-archivo' => ['GET', 'HEAD'],
+            'descargar-archivo-archivada' => ['GET', 'HEAD'],
         ];
     }
 
@@ -930,7 +932,13 @@ class ApiController extends Controller
                 ->one();
 
             if($user){
+                /**
+                 * Buscar tarea por id
+                 */
                 $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                /**
+                 * Sacar localida dde modelo tarea
+                 */
                 $localidad = $tarea->localidad;
 
                 if($tarea){
@@ -970,7 +978,13 @@ class ApiController extends Controller
                 ->one();
 
             if($user){
+                /**
+                 * Buscar tarea por id
+                 */
                 $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                /**
+                 * Sacar localida dde modelo tarea
+                 */
                 $localidad = $tarea->localidad;
 
                 if($tarea){
@@ -984,6 +998,66 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Descargar archivo de tarea
+     */
+    public function actionDescargarArchivo($id = 0){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($id){
+            /**
+             * Buscar tarea por id
+             */
+            $tarea = WrkTareas::find()->where(['id_tarea'=>$id, 'id_tipo'=>ConstantesWeb::TAREA_ARCHIVO])->one();
+
+            if($tarea){
+                $dropbox = Dropbox::descargarArchivo($tarea->txt_path);
+                $decodeDropbox = json_decode(trim($dropbox), TRUE);
+
+                if(isset($decodeDropbox['link'])){
+                    return $this->redirect($decodeDropbox['link']);
+                }else{
+                    throw new HttpException(400, "No se encontro el archivo");
+                }
+            }else{
+                throw new HttpException(400, "La tarea no existe");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Descargar archivo de tarea archivada
+     */
+    public function actionDescargarArchivoArchivada($id = 0){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($id){
+            /**
+             * Buscar tarea por id
+             */
+            $tarea = WrkTareasArchivadas::find()->where(['id_tarea'=>$id, 'id_tipo'=>ConstantesWeb::TAREA_ARCHIVO])->one();
+
+            if($tarea){
+                $dropbox = Dropbox::descargarArchivo($tarea->txt_path);
+                $decodeDropbox = json_decode(trim($dropbox), TRUE);
+
+                if(isset($decodeDropbox['link'])){
+                    return $this->redirect($decodeDropbox['link']);
+                }else{
+                    throw new HttpException(400, "No se encontro el archivo");
+                }
+            }else{
+                throw new HttpException(400, "La tarea no existe");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
