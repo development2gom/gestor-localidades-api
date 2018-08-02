@@ -719,4 +719,41 @@ class ApiController extends Controller
             throw new HttpException(400, "Se necesitan datos para validar la petición");
         }
     }
+
+    /**
+     * Eliminar tarea por usuarios abogados, asistentes o dorectores juridicos
+     */
+    public function actionEliminarTarea($token = null, $id = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $id){
+            /**
+             * Buscar usuario que sea abogado, asistente o director
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+                ->one();
+
+            if($user){
+                $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                $localidad = $tarea->localidad;
+
+                if($tarea){
+                    if(!$tarea->delete()){
+                        throw new HttpException(400, "La tarea no se elimino correctamente");
+                    }
+
+                    return $localidad;
+                }else{
+                    throw new HttpException(400, "La tarea no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
 }
