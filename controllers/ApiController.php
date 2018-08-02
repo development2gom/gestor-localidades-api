@@ -22,6 +22,12 @@ use app\models\WrkUsuariosLocalidades;
 use app\models\WrkTareas;
 use app\models\WrkUsuariosTareas;
 use yii\web\UploadedFile;
+use app\models\EntLocalidadesArchivadas;
+use app\models\EntEstatusArchivados;
+use app\models\WrkTareasArchivadas;
+use app\models\WrkUsuariosTareasArchivadas;
+use app\models\WrkUsuariosLocalidadesArchivadas;
+use yii\helpers\Url;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -53,6 +59,8 @@ class ApiController extends Controller
             'remover-usuario-tarea' => ['DELETE'],
             'responder-tarea' => ['POST'],
             'completar-tarea' => ['PUT', 'PATCH'],
+            'archivar-localidad' => ['PUT', 'PATCH'],
+            'desarchivar-localidad' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -218,9 +226,8 @@ class ApiController extends Controller
                      */
                     if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
                         $padre = WrkUsuarioUsuarios::find()->where(['id_usuario_hijo'=>$user->id_usuario])->one();
-                        $model = EntLocalidades::find()->where(['cms'=>$cms])
-                            ->andWhere(['id_usuario'=>$padre->id_usuario_padre])
-                            ->orWhere(['id_usuario'=>$user->id_usuario])->one();
+                        $model = EntLocalidades::find()->where(['cms'=>$cms, 'id_usuario'=>$padre->id_usuario_padre])
+                            ->orWhere(['cms'=>$cms, 'id_usuario'=>$user->id_usuario])->one();
                     }
 
                     /**
@@ -288,6 +295,232 @@ class ApiController extends Controller
                 return $model;
             }else{
                 throw new HttpException(400, "No se encontro la localidad");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Archivar localidades por usuario abogado o asistente
+     */
+    public function actionArchivarLocalidad($token = null, $cms = null, $mot = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $cms && $mot){
+            /**
+             * Buscar usuario que sea abogado o asistente
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar localidad por el cms
+                 */
+                $localidad = EntLocalidades::find()->where(['cms'=>$cms])->one();
+
+                if($localidad){
+                    $archivada = new EntLocalidadesArchivadas();
+                    $archivada->attributes = $localidad->attributes;
+                    $archivada->id_localidad = $localidad->id_localidad;
+                    $archivada->b_archivada = $mot;
+
+                    /**
+                     * Archivar localidad con todos sus datos relacionados
+                     */
+                    $transaction = Yii::$app->db->beginTransaction();
+                    try {
+                        if ($archivada->save()) {
+                            $tareas = $localidad->wrkTareas;
+                            $estatus = EntEstatus::find()->where(['id_localidad'=>$localidad->id_localidad])->all();
+
+                            foreach($estatus as $es){
+                                $estatusArch = new EntEstatusArchivados();
+                                $estatusArch->id_localidad = $archivada->id_localidad;
+                                $estatusArch->txt_estatus = $es->txt_estatus;
+                                $estatusArch->fch_creacion = $es->fch_creacion;
+
+                                if(!$estatusArch->save()){
+                                    $transaction->rollBack();
+                                    throw new HttpException(400, "No se guardo el estatus de la localidad");
+                                }else{
+                                    $es->delete();
+                                }
+                            }
+
+                            if($tareas){
+                                foreach ($tareas as $tarea) {
+                                    $tareaArchivada = new WrkTareasArchivadas();
+                                    $tareaArchivada->attributes = $tarea->attributes;
+                                    $tareaArchivada->id_tarea = $tarea->id_tarea;
+                                    $tareaArchivada->id_localidad = $archivada->id_localidad;
+
+                                    if ($tareaArchivada->save()) {
+                                        $usersTareas = WrkUsuariosTareas::find()->where(['id_tarea' => $tarea->id_tarea])->all();
+                                        if ($usersTareas) {
+                                            foreach ($usersTareas as $userTarea) {
+                                                $userTareaArchivada = new WrkUsuariosTareasArchivadas();
+                                                $userTareaArchivada->attributes = $userTarea->attributes;
+                                                $userTareaArchivada->id_tarea = $userTarea->id_tarea;
+
+                                                if (!$userTareaArchivada->save()) {
+                                                    $transaction->rollBack();
+                                                    throw new HttpException(400, "No se guardo relacion usuario/tarea");                                                    
+                                                }
+                                                $userTarea->delete();
+                                            }
+                                        }
+                                        
+                                        $usersLocs = WrkUsuariosLocalidades::find()->where(['id_localidad' => $localidad->id_localidad])->one();
+                                        //print_r($usersLocs);exit;
+                                        if ($usersLocs) {
+                                            $userLocArchivada = new WrkUsuariosLocalidadesArchivadas();
+                                            $userLocArchivada->attributes = $usersLocs->attributes;
+
+                                            if (!$userLocArchivada->save()) {
+                                                $transaction->rollBack();
+                                                throw new HttpException(400, "No se guardo relacion usuario/localidad");                                                                                                    
+                                            }
+                                            $usersLocs->delete();
+                                        }
+                                    }else{
+                                        $transaction->rollBack();
+                                        throw new HttpException(400, "No se guardo relacion la tarea al archivar");                                                                                            
+                                    }
+                                    $tarea->delete();
+                                }
+                            }
+                            $localidad->delete();
+                            $transaction->commit();
+                            
+                            return $archivada;
+                        }else{
+                            $transaction->rollBack();
+                            
+                            throw new HttpException(400, "La localidad no ha sido archivada");
+                        }
+                        $transaction->commit();
+
+                        return $archivada;
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        throw $e;
+                    }
+
+                }else{
+                    throw new HttpException(400, "La localidad no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Desarchivar localidades por usuario abogado o asistente
+     */
+    public function actionDesarchivarLocalidad($token = null, $cms = null){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $cms){
+            /**
+             * Buscar usuario que sea abogado o asistente
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar localidad archivada por el cms
+                 */
+                $archivada = EntLocalidadesArchivadas::find()->where(['cms'=>$cms])->one();
+
+                if($archivada){
+                    $localidad = new EntLocalidades();
+                    $localidad->attributes = $archivada->attributes;
+                    $localidad->b_archivada = 0;
+
+                    $transaction = EntLocalidades::getDb()->beginTransaction();
+                    try{
+                        if($localidad->save()){
+                            $tareasArchivadas = $archivada->wrkTareasArchivadas;
+            
+                            $estatusArch = EntEstatusArchivados::find()->where(['id_localidad'=>$archivada->id_localidad])->all();
+            
+                            foreach($estatusArch as $es){
+                                $estatus = new EntEstatus();
+                                $estatus->id_localidad = $localidad->id_localidad;
+                                $estatus->txt_estatus = $es->txt_estatus;
+                                $estatus->fch_creacion = $es->fch_creacion;
+            
+                                if(!$estatus->save()){
+                                    $transaction->rollBack();
+                                    throw new HttpException(400, "No se guardo el estatus de la localidad");
+                                }else{
+                                    $es->delete();
+                                }
+                            }
+            
+                            foreach($tareasArchivadas as $tareaArchivada){
+                                $tarea = new WrkTareas();
+                                $tarea->attributes = $tareaArchivada->attributes;
+                                $tarea->id_localidad = $localidad->id_localidad;
+                                $tarea->txt_path = $tareaArchivada->txt_path;
+                                $tarea->txt_tarea = $tareaArchivada->txt_tarea;
+            
+                                if(!$tarea->save()){
+                                    $transaction->rollBack ();
+                                    throw new HttpException(400, "No se guardo la tarea al desarchivar localidad");                                    
+                                }else{
+                                    $userTareaArchivada = WrkUsuariosTareasArchivadas::find()->where(['id_tarea'=>$tareaArchivada->id_tarea])->one();
+                                    if($userTareaArchivada){
+                                        $userTarea = new WrkUsuariosTareas();
+                                        $userTarea->id_usuario = $userTareaArchivada->id_usuario;
+                                        $userTarea->id_tarea = $tarea->id_tarea;
+            
+                                        if(!$userTarea->save()){
+                                            $transaction->rollBack ();
+                                            throw new HttpException(400, "No se guardo relacion usuario/tarea");
+                                        }
+                                    }
+                                }
+                                $tareaArchivada->delete();
+                            }
+                            $userLocArchivada = WrkUsuariosLocalidadesArchivadas::find()->where(['id_localidad'=>$archivada->id_localidad])->one();
+                            if($userLocArchivada){
+                                $userLoc = new WrkUsuariosLocalidades();
+                                $userLoc->id_localidad = $localidad->id_localidad;
+                                $userLoc->id_usuario = $userLocArchivada->id_usuario;
+                                
+                                if(!$userLoc->save()){
+                                    $transaction->rollBack ();
+                                    throw new HttpException(400, "No se guardo relacion usuario/localidad");                                    
+                                }
+                            }
+                        }else{
+                            $transaction->rollBack();
+                            throw new HttpException(400, "No se guardo localidad");                            
+                        }
+                        $archivada->delete();
+                        $transaction->commit ();
+            
+                        return $localidad;
+                    }catch(\Exception $e) {
+                        $transaction->rollBack ();
+                        throw $e;
+                    }
+                }else{
+                    throw new HttpException(400, "La localidad no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
@@ -420,8 +653,8 @@ class ApiController extends Controller
             /**
              * Buscar usuario que sea abogado, asistente o colaborador
              */
-            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
                 ->one();
 
             if($user){
@@ -467,9 +700,9 @@ class ApiController extends Controller
             /**
              * Buscar usuario que sea abogado, asistente o director
              */
-            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::CLIENTE])
                 ->one();
 
             if($user){
@@ -691,9 +924,9 @@ class ApiController extends Controller
             /**
              * Buscar usuario que sea abogado, asistente o director
              */
-            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::CLIENTE])
                 ->one();
 
             if($user){
@@ -731,9 +964,9 @@ class ApiController extends Controller
             /**
              * Buscar usuario que sea abogado, asistente o director
              */
-            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
-                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::CLIENTE])
                 ->one();
 
             if($user){
