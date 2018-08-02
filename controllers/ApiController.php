@@ -52,6 +52,7 @@ class ApiController extends Controller
             'asignar-usuario-tarea' => ['PUT', 'PATCH'],
             'remover-usuario-tarea' => ['DELETE'],
             'responder-tarea' => ['POST'],
+            'completar-tarea' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -617,14 +618,29 @@ class ApiController extends Controller
             $localidad = $tarea->localidad;
 
             if($tarea){
+                /**
+                 * Verificar si la tarea es de tipo archivo
+                 */
                 if($tarea->id_tipo == ConstantesWeb::TAREA_ARCHIVO){
+                    /**
+                     * Cargar archivo mandado por post
+                     */
                     $fileDropbox = UploadedFile::getInstanceByName('fileTarea');
 
                     if($fileDropbox){
+                        /**
+                         * Subir archivo a dropbox
+                         */
                         $dropbox = Dropbox::subirArchivo($localidad->txt_nombre, $fileDropbox);
                         $decodeDropbox = json_decode(trim($dropbox), TRUE);
 
+                        /**
+                         * Verificar que la respuesta de dropbox sea correcta
+                         */
                         if(isset($decodeDropbox['path_display'])){
+                            /**
+                             * Agregar path del archivo de la tarea a modelo
+                             */
                             $tarea->txt_path = $decodeDropbox['path_display'];
                         }else{
                             throw new HttpException(400, "No se guardo correctamente el archivo en dropbox");
@@ -632,7 +648,13 @@ class ApiController extends Controller
                     }else{
                         throw new HttpException(400, "No se cargo ningun archivo");
                     }
+                /**
+                 * Verificar si la tarea es de tipo texto
+                 */
                 }else if($tarea->id_tipo == ConstantesWeb::TAREA_ABIERTO){
+                    /**
+                     * Cargar dato de txt_tarea cargado por post 
+                     */
                     if($tarea->load($request->bodyParams, "")){
                         
                     }else{
@@ -642,6 +664,9 @@ class ApiController extends Controller
                     throw new HttpException(400, "No se definio el tipo de tarea");
                 }
 
+                /**
+                 * Actualizar fecha y guardar tarea
+                 */
                 $tarea->fch_actualizacion = date("Y-m-d H:i:s");
                 if($tarea->save()){
                     
@@ -649,6 +674,46 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "La tarea no existe");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Completar tarea por usuarios abogados, asistentes o dorectores juridicos
+     */
+    public function actionCompletarTarea($token = null, $id = 0){
+        /**
+         * Validar que vengan los parametros en la peticion
+         */
+        if($token && $id){
+            /**
+             * Buscar usuario que sea abogado, asistente o director
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->andWhere(['txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_auth_item'=>ConstantesWeb::CLIENTE])
+                ->one();
+
+            if($user){
+                $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
+                $localidad = $tarea->localidad;
+
+                if($tarea){
+                    $tarea->fch_actualizacion = date("Y-m-d H:i:s");
+                    $tarea->b_completa = 1;
+
+                    if(!$tarea->save()){
+                        throw new HttpException(400, "La tarea no se guardo correctamente");
+                    }
+
+                    return $localidad;
+                }else{
+                    throw new HttpException(400, "La tarea no existe");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no tiene los permisos para realizar esta acción");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
