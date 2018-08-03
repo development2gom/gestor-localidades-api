@@ -1139,7 +1139,7 @@ class ApiController extends Controller
                      */    
                     }else if($user->txt_auth_item == ConstantesWeb::ABOGADO){
                         /**
-                         * Si el usuario a crear es asistente
+                         * Si el usuario a crear es asistente o director juridico
                          */
                         if($nuevoUser->txt_auth_item == ConstantesWeb::ASISTENTE || $nuevoUser->txt_auth_item == ConstantesWeb::CLIENTE){
                             
@@ -1162,7 +1162,34 @@ class ApiController extends Controller
                             }else{
                                 throw new HttpException(400, "No se pudo guardar al usuario");
                             }
+
+                        /**
+                         * Si el usuario a crear es colaborador
+                         */
+                        }else if($nuevoUser->txt_auth_item == ConstantesWeb::COLABORADOR){
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            if($usuario = $nuevoUser->signup()){
+                                /**
+                                 * Crear relacion usuario padre y usuario hijo
+                                 */
+                                $relUsuarios = new WrkUsuarioUsuarios();
+                                $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
+                                $relUsuarios->id_usuario_padre = $request->getBodyParam('usuarioPadre');
+                                
+                                if(!$relUsuarios->save()){
+                                    throw new HttpException(400, "No se guardo relacion entre usuarios");
+                                }
+
+                                return $nuevoUser;
+                            }else{
+                                throw new HttpException(400, "No se pudo guardar al usuario");
+                            }
+                        }else{
+                            throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
                         }
+                        
 
                     }else if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
 
