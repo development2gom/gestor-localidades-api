@@ -172,4 +172,29 @@ class EntLocalidadesArchivadas extends \yii\db\ActiveRecord
     {
         return $this->hasMany(ModUsuariosEntUsuarios::className(), ['id_usuario' => 'id_usuario'])->viaTable('wrk_usuarios_localidades_archivadas', ['id_localidad' => 'id_localidad']);
     }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getEntEstatusesArchivados()
+    {
+        return $this->hasMany(EntEstatusArchivados::className(), ['id_localidad' => 'id_localidad']);
+    }
+
+    public function fields(){
+        $fields = parent::fields();
+        
+        /**
+         * Se calculan y se regresan en el json de respuesta
+         */
+        $fields[] = 'bStatusLocalidad';
+        $fields[] = 'moneda';
+        $fields[] = 'estado';
+        $fields[] = 'wrkTareasArchivadas';
+        $fields[] = 'entEstatusesArchivados';
+
+        unset($fields['b_status_localidad'], $fields['id_estado'], $fields['id_moneda'], $fields['txt_estatus']);
+
+        return $fields;
+    }
 }
