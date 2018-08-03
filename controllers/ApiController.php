@@ -63,6 +63,9 @@ class ApiController extends Controller
             'desarchivar-localidad' => ['PUT', 'PATCH'],
             'descargar-archivo' => ['GET', 'HEAD'],
             'descargar-archivo-archivada' => ['GET', 'HEAD'],
+
+            //'crear-usuario' => ['POST'],
+            'crear-usuario' => ['GET', 'HEAD'],
         ];
     }
 
@@ -1058,6 +1061,40 @@ class ApiController extends Controller
                 }
             }else{
                 throw new HttpException(400, "La tarea no existe");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    
+    
+    /**
+     * Crear usuarios
+     */
+    public function actionCrearUsuario($token = null){
+        $request = Yii::$app->request;
+        $auth = Yii::$app->authManager;
+
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
+
+            if($user){
+                /**
+                 * Si el usuario es super-admin
+                 */
+                if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
+                    $hijos = $auth->getChildRoles($user->txt_auth_item);
+                    print_r($hijos);
+                }
+            }else{
+                throw new HttpException(400, "El usuario no existe");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");

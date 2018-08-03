@@ -44,6 +44,13 @@ use Yii;
  */
 class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
 {
+    public $password;
+	public $repeatPassword;
+	public $repeat;
+	public $repeatEmail;
+	public $image;
+    public $usuarioPadre;
+    
     /**
      * {@inheritdoc}
      */
