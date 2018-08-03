@@ -1096,8 +1096,10 @@ class ApiController extends Controller
                     $nuevoUser->password = $nuevoUser->randomPassword();
                     $nuevoUser->repeatPassword = $nuevoUser->password;
                     
+
+
                     /**
-                     * Si el usuario que hace la peticion es super-admin
+                     * Si el usuario que hace la peticion es SUPER-ADMIN
                      */
                     if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
                         /**
@@ -1126,8 +1128,41 @@ class ApiController extends Controller
                             }else{
                                 throw new HttpException(400, "No se pudo guardar al usuario");
                             }
+                        }else{
+                            throw new HttpException(400, "No puedes crear otro tipo de usuarios");
                         }
+
+
+
+                    /**
+                     * Si el usuario que hace la peticion es ABOGADO
+                     */    
                     }else if($user->txt_auth_item == ConstantesWeb::ABOGADO){
+                        /**
+                         * Si el usuario a crear es asistente
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::ASISTENTE || $nuevoUser->txt_auth_item == ConstantesWeb::CLIENTE){
+                            
+                             /**
+                             * Guardar usuario nuevo
+                             */
+                            if($usuario = $nuevoUser->signup()){
+                                /**
+                                 * Crear relacion usuario padre y usuario hijo
+                                 */
+                                $relUsuarios = new WrkUsuarioUsuarios();
+                                $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
+                                $relUsuarios->id_usuario_padre = $user->id_usuario;
+                                
+                                if(!$relUsuarios->save()){
+                                    throw new HttpException(400, "No se guardo relacion entre usuarios");
+                                }
+
+                                return $nuevoUser;
+                            }else{
+                                throw new HttpException(400, "No se pudo guardar al usuario");
+                            }
+                        }
 
                     }else if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
 
