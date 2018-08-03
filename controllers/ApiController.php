@@ -28,6 +28,7 @@ use app\models\WrkTareasArchivadas;
 use app\models\WrkUsuariosTareasArchivadas;
 use app\models\WrkUsuariosLocalidadesArchivadas;
 use yii\helpers\Url;
+use app\models\CatPorcentajeRentaAbogados;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -64,8 +65,8 @@ class ApiController extends Controller
             'descargar-archivo' => ['GET', 'HEAD'],
             'descargar-archivo-archivada' => ['GET', 'HEAD'],
 
-            //'crear-usuario' => ['POST'],
-            'crear-usuario' => ['GET', 'HEAD'],
+            'crear-usuario' => ['POST'],
+            //'crear-usuario' => ['GET', 'HEAD'],
         ];
     }
 
@@ -1086,12 +1087,57 @@ class ApiController extends Controller
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
 
             if($user){
-                /**
-                 * Si el usuario es super-admin
-                 */
-                if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
-                    $hijos = $auth->getChildRoles($user->txt_auth_item);
-                    print_r($hijos);
+                $nuevoUser = new ModUsuariosEntUsuarios();
+                
+                if($nuevoUser->load($request->bodyParams, "")){
+                    /**
+                     * Asignar un passworg al usuario
+                     */
+                    $nuevoUser->password = $nuevoUser->randomPassword();
+                    $nuevoUser->repeatPassword = $nuevoUser->password;
+                    
+                    /**
+                     * Si el usuario que hace la peticion es super-admin
+                     */
+                    if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
+                        /**
+                         * Si el usuario a crear es abogado
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::ABOGADO){
+                            
+                            /**
+                             * Guardar usuario
+                             */
+                            if($usuario = $nuevoUser->signup()){
+                                //$nuevoUser->enviarEmailBienvenida();
+
+                                /**
+                                 * Guardar porcentaje de abogado
+                                 */
+                                $porcentajeRenta = new CatPorcentajeRentaAbogados();
+                                $porcentajeRenta->id_usuario = $nuevoUser->id_usuario;
+                                $porcentajeRenta->num_porcentaje = 10;
+                                
+                                if(!$porcentajeRenta->save()){
+                                    throw new HttpException(400, "No se pudo guardar el procentaje del usuario");
+                                }
+
+                                return $nuevoUser;
+                            }else{
+                                throw new HttpException(400, "No se pudo guardar al usuario");
+                            }
+                        }
+                    }else if($user->txt_auth_item == ConstantesWeb::ABOGADO){
+
+                    }else if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
+
+                    }else if($user->txt_auth_item == ConstantesWeb::CLIENTE){
+                        
+                    }else if($user->txt_auth_item == ConstantesWeb::COLABORADOR){
+                        throw new HttpException(400, "No tienes permiso para crear usuarios");
+                    }else{
+                        throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
+                    }
                 }
             }else{
                 throw new HttpException(400, "El usuario no existe");

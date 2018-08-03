@@ -3,6 +3,8 @@
 namespace app\models;
 
 use Yii;
+use yii\web\UploadedFile;
+use app\models\AuthItem;
 
 /**
  * This is the model class for table "mod_usuarios_ent_usuarios".
@@ -44,6 +46,9 @@ use Yii;
  */
 class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
 {
+    const STATUS_PENDIENTED = 1;
+	const STATUS_ACTIVED = 2;
+	const STATUS_BLOCKED = 3;
     public $password;
 	public $repeatPassword;
 	public $repeat;
@@ -289,4 +294,133 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
 
         return $fields;
     }
+
+    /**
+	 * Guarda al usuario en la base de datos
+	 *
+	 * @return EntUsuarios
+	 */
+	public function signup($isFacebook=false) {
+
+		$this->image = UploadedFile::getInstance($this, 'image');
+
+		$this->txt_token = Utils::generateToken ( 'usr' );
+		
+		if($this->image){
+			$this->txt_imagen = $this->txt_token.".".$this->image->extension;
+			if(!$this->upload()){
+				return false;
+			}
+		}
+
+		$this->setPassword ( $this->password );
+		$this->generateAuthKey ();
+		$this->fch_creacion = Utils::getFechaActual ();
+		
+		// Si esta activada la opcion de mandar correo de activación el usuario estara en status pendiente
+		//if (Yii::$app->params ['modUsuarios'] ['mandarCorreoActivacion'] && !$isFacebook) {
+			$this->id_status = self::STATUS_PENDIENTED;
+		//} else {
+			$this->id_status = self::STATUS_ACTIVED;
+        //}
+        
+        if (! $this->validate ()) {
+			return false;
+		}
+
+		if($this->save()){
+
+			$this->guardarRoleUsuario();
+
+			return true;
+		}else{
+			return false;
+		}
+		
+    }
+    
+    public function upload()
+    {
+		$path = "profiles/".$this->txt_token;
+		if (!file_exists($path)) {
+			mkdir($path, 0777, true);
+		}
+       
+    	if($this->image->saveAs($path."/".$this->txt_imagen)){
+			return true;
+		}else{
+			return false;	
+		}
+            
+    }
+
+    public function guardarRoleUsuario(){
+		
+		$auth = \Yii::$app->authManager;
+		$authorRole = $auth->getRole($this->txt_auth_item);
+		$auth->assign($authorRole, $this->getId());
+	}
+
+	public function getRoleDescription(){
+
+		return $this->txtAuthItem->description;
+    }
+    
+    public function enviarEmailBienvenida(){
+		
+		// Parametros para el email
+		$params ['url'] = Yii::$app->urlManager->createAbsoluteUrl ( [ 
+			'ingresar/' . $this->txt_token 
+		] );
+		$params ['user'] = $this->nombreCompleto;
+		$params ['usuario'] = $this->txt_email;
+		$params ['password'] = $this->password;
+		
+        $email = new Email();
+        $email->emailHtml = "@app/modules/ModUsuarios/email/bienvenida";
+        $email->emailText = "@app/modules/ModUsuarios/email/layouts/text";
+        $email->to = $this->txt_email;
+        $email->subject = "Bienvenido";
+        $email->params =$params ;
+        
+        // Envio de correo electronico
+        $email->sendEmail();
+        return true;
+    }
+    
+    public function randomPassword() {
+		$alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+		$pass = array(); //remember to declare $pass as an array
+		$alphaLength = strlen($alphabet) - 1; //put the length -1 in cache
+		for ($i = 0; $i < 8; $i++) {
+			$n = rand(0, $alphaLength);
+			$pass[] = $alphabet[$n];
+
+            	
+        }
+        return implode($pass);
+    }
+
+    /**
+	 * Generates password hash from password and sets it to the model
+	 *
+	 * @param string $password        	
+	 */
+	public function setPassword($password) {
+		$this->txt_password_hash = Yii::$app->security->generatePasswordHash ( $password );
+	}
+	
+	/**
+	 * Generates "remember me" authentication key
+	 */
+	public function generateAuthKey() {
+		$this->txt_auth_key = Yii::$app->security->generateRandomString ();
+    }
+    
+    /**
+	 * @inheritdoc
+	 */
+	public function getId() {
+		return $this->getPrimaryKey ();
+	}
 }
