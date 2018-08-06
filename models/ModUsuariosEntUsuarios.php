@@ -286,6 +286,7 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
         $fields = parent::fields();
         
         $fields[] = 'usuariosHijos';
+        $fields[] = 'status';
 
         /**
          * Se quitan los siguientes campos cuando se regresan en el json de respuesta

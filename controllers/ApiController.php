@@ -29,6 +29,7 @@ use app\models\WrkUsuariosTareasArchivadas;
 use app\models\WrkUsuariosLocalidadesArchivadas;
 use yii\helpers\Url;
 use app\models\CatPorcentajeRentaAbogados;
+use app\models\UsuariosSearch;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -65,6 +66,7 @@ class ApiController extends Controller
             'descargar-archivo' => ['GET', 'HEAD'],
             'descargar-archivo-archivada' => ['GET', 'HEAD'],
 
+            'usuarios' => ['GET', 'HEAD'],
             'crear-usuario' => ['POST'],
             'editar-usuario' => ['PUT', 'PATCH'],            
         ];
@@ -1258,6 +1260,9 @@ class ApiController extends Controller
         }
     }
 
+    /**
+     * Editar usuarios
+     */
     public function actionEditarUsuario($token = null, $tokenU = null){
         $request = Yii::$app->request;
 
@@ -1291,6 +1296,50 @@ class ApiController extends Controller
                 }else{
                     throw new HttpException(400, "No existe el usuario que se quiere editar");
                 }
+            }else{
+                throw new HttpException(400, "No tienes permiso para editar usuarios");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Mostrar usuarios
+     */
+    public function actionUsuarios($token = null, $page = 0){
+        $auth = Yii::$app->authManager;
+
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::SUPER_ADMIN])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar roles hijos de usuario que hace la peticion
+                 */
+                $hijos = $auth->getChildRoles($user->txt_auth_item);
+                ksort($hijos);
+                unset($hijos[$user->txt_auth_item]);
+
+                /**
+                 * Buscar usuarios hijos de usuario que hace la peticion
+                 */
+                //$usuarios = ModUsuariosEntUsuarios::find()->where(['in', 'txt_auth_item', array_keys($hijos)])->all();
+                  
+                $searchModel = new UsuariosSearch();
+                $searchModel->txt_auth_item = array_keys($hijos);
+                $dataProvider = $searchModel->search(Yii::$app->getRequest()->get(), $page);
+                
+                return $dataProvider;
             }else{
                 throw new HttpException(400, "No tienes permiso para editar usuarios");
             }
