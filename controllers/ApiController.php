@@ -66,7 +66,7 @@ class ApiController extends Controller
             'descargar-archivo-archivada' => ['GET', 'HEAD'],
 
             'crear-usuario' => ['POST'],
-            //'crear-usuario' => ['GET', 'HEAD'],
+            'editar-usuario' => ['PUT', 'PATCH'],            
         ];
     }
 
@@ -1255,6 +1255,47 @@ class ApiController extends Controller
             return $nuevoUser;
         }else{
             throw new HttpException(400, "No se pudo guardar al usuario");
+        }
+    }
+
+    public function actionEditarUsuario($token = null, $tokenU = null){
+        $request = Yii::$app->request;
+
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token && $tokenU){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::SUPER_ADMIN])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar usuario que se va a editar
+                 */
+                $userNuevo = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU])->one();
+                if($userNuevo){
+                    if($userNuevo->load($request->bodyParams, "")){
+                        if(!$userNuevo->save()){
+                            throw new HttpException(400, "No se guardo el nuevo usuario");
+                        }
+
+                        return $userNuevo;
+                    }else{
+                        throw new HttpException(400, "No hay datos para editar el usuario");
+                    }
+                }else{
+                    throw new HttpException(400, "No existe el usuario que se quiere editar");
+                }
+            }else{
+                throw new HttpException(400, "No tienes permiso para editar usuarios");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
         }
     }
 }
