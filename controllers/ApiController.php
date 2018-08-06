@@ -1147,22 +1147,7 @@ class ApiController extends Controller
                              * Guardar usuario nuevo
                              */
                             return $this->guardarUsuario($nuevoUser);
-                            // if($usuario = $nuevoUser->signup()){
-                            //     /**
-                            //      * Crear relacion usuario padre y usuario hijo
-                            //      */
-                            //     $relUsuarios = new WrkUsuarioUsuarios();
-                            //     $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
-                            //     $relUsuarios->id_usuario_padre = $user->id_usuario;
-                                
-                            //     if(!$relUsuarios->save()){
-                            //         throw new HttpException(400, "No se guardo relacion entre usuarios");
-                            //     }
-
-                            //     return $nuevoUser;
-                            // }else{
-                            //     throw new HttpException(400, "No se pudo guardar al usuario");
-                            // }
+                        
 
                         /**
                          * Si el usuario a crear es colaborador
@@ -1172,23 +1157,6 @@ class ApiController extends Controller
                              * Guardar usuario nuevo
                              */
                             return $this->guardarUsuarioPadre($nuevoUser, $request);
-
-                            // if($usuario = $nuevoUser->signup()){
-                            //     /**
-                            //      * Crear relacion usuario padre y usuario hijo
-                            //      */
-                            //     $relUsuarios = new WrkUsuarioUsuarios();
-                            //     $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
-                            //     $relUsuarios->id_usuario_padre = $request->getBodyParam('usuarioPadre');
-                                
-                            //     if(!$relUsuarios->save()){
-                            //         throw new HttpException(400, "No se guardo relacion entre usuarios");
-                            //     }
-
-                            //     return $nuevoUser;
-                            // }else{
-                            //     throw new HttpException(400, "No se pudo guardar al usuario");
-                            // }
                         }else{
                             throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
                         }
@@ -1206,22 +1174,7 @@ class ApiController extends Controller
                              * Guardar usuario nuevo
                              */
                             return $this->guardarUsuario($nuevoUser);
-                            // if($usuario = $nuevoUser->signup()){
-                            //     /**
-                            //      * Crear relacion usuario padre y usuario hijo
-                            //      */
-                            //     $relUsuarios = new WrkUsuarioUsuarios();
-                            //     $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
-                            //     $relUsuarios->id_usuario_padre = $user->id_usuario;
-                                
-                            //     if(!$relUsuarios->save()){
-                            //         throw new HttpException(400, "No se guardo relacion entre usuarios");
-                            //     }
-
-                            //     return $nuevoUser;
-                            // }else{
-                            //     throw new HttpException(400, "No se pudo guardar al usuario");
-                            // }
+                            
 
                         /**
                          * Si el usuario a crear es colaborador
@@ -1231,22 +1184,6 @@ class ApiController extends Controller
                              * Guardar usuario nuevo
                              */
                             return $this->guardarUsuarioPadre($nuevoUser, $request);
-                            // if($usuario = $nuevoUser->signup()){
-                            //     /**
-                            //      * Crear relacion usuario padre y usuario hijo
-                            //      */
-                            //     $relUsuarios = new WrkUsuarioUsuarios();
-                            //     $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
-                            //     $relUsuarios->id_usuario_padre = $request->getBodyParam('usuarioPadre');
-                                
-                            //     if(!$relUsuarios->save()){
-                            //         throw new HttpException(400, "No se guardo relacion entre usuarios");
-                            //     }
-
-                            //     return $nuevoUser;
-                            // }else{
-                            //     throw new HttpException(400, "No se pudo guardar al usuario");
-                            // }
                         }else{
                             throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
                         }
@@ -1263,22 +1200,6 @@ class ApiController extends Controller
                              * Guardar usuario nuevo
                              */
                             return $this->guardarUsuario($nuevoUser);
-                            // if($usuario = $nuevoUser->signup()){
-                            //     /**
-                            //      * Crear relacion usuario padre y usuario hijo
-                            //      */
-                            //     $relUsuarios = new WrkUsuarioUsuarios();
-                            //     $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
-                            //     $relUsuarios->id_usuario_padre = $user->id_usuario;
-                                
-                            //     if(!$relUsuarios->save()){
-                            //         throw new HttpException(400, "No se guardo relacion entre usuarios");
-                            //     }
-
-                            //     return $nuevoUser;
-                            // }else{
-                            //     throw new HttpException(400, "No se pudo guardar al usuario");
-                            // }
                         }else{
                             throw new HttpException(400, "No tienes permiso para crear usuarios");
                         }
