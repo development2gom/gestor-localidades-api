@@ -5,6 +5,7 @@ namespace app\models;
 use Yii;
 use yii\web\UploadedFile;
 use app\models\AuthItem;
+use yii\web\IdentityInterface;
 
 /**
  * This is the model class for table "mod_usuarios_ent_usuarios".
@@ -44,7 +45,7 @@ use app\models\AuthItem;
  * @property WrkUsuariosTareasArchivadas[] $wrkUsuariosTareasArchivadas
  * @property WrkTareasArchivadas[] $tareas0
  */
-class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
+class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord implements IdentityInterface
 {
     const STATUS_PENDIENTED = 1;
 	const STATUS_ACTIVED = 2;
@@ -423,5 +424,10 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord
 	 */
 	public function getId() {
 		return $this->getPrimaryKey ();
-	}
+    }
+    
+    public static function findIdentityByAccessToken($token, $type = null)
+    {
+        return static::findOne(['access_token' => $token]);
+    }
 }

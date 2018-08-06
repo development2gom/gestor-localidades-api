@@ -30,6 +30,13 @@ use app\models\WrkUsuariosLocalidadesArchivadas;
 use yii\helpers\Url;
 use app\models\CatPorcentajeRentaAbogados;
 use app\models\UsuariosSearch;
+use app\models\CatTokenSeguridad;
+
+use yii\filters\auth\CompositeAuth;
+use yii\filters\auth\HttpBasicAuth;
+use yii\filters\auth\HttpBearerAuth;
+use yii\filters\auth\QueryParamAuth;
+use yii\helpers\ArrayHelper;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -40,6 +47,7 @@ class ApiController extends Controller
         'class' => 'app\components\SerializerExtends',
         'collectionEnvelope' => 'items',
     ];
+    private $seguridad = true;
 
     /**
      * {@inheritdoc}
@@ -73,6 +81,23 @@ class ApiController extends Controller
             'activar-usuario' => ['PUT', 'PATCH'],
         ];
     }
+
+    public function behaviors()
+{
+    return ArrayHelper::merge(
+        parent::behaviors(), [
+            'authenticator' => [
+                'class' => CompositeAuth::className(),
+                'except' => ['login', 'resetpassword'],
+                'authMethods' => [
+                    HttpBasicAuth::className(),
+                    HttpBearerAuth::className(),
+                    QueryParamAuth::className(),
+                ],
+            ],
+        ]
+    );
+}
 
     /**
      * Mostrar localidades segun el tipo de usuario
@@ -1128,6 +1153,14 @@ class ApiController extends Controller
                                     throw new HttpException(400, "No se pudo guardar el procentaje del usuario");
                                 }
 
+                                $token = new CatTokenSeguridad();
+                                $token->id_usuario = $nuevoUser->id_usuario;
+                                $token->txt_token = Utils::generateToken('seg_');
+
+                                if(!$token->save()){
+                                    throw new HttpException(400, "No se pudo guardar el token de seguridad");
+                                }
+
                                 return $nuevoUser;
                             }else{
                                 throw new HttpException(400, "No se pudo guardar al usuario");
@@ -1237,6 +1270,14 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se guardo relacion entre usuarios");
             }
 
+            $token = new CatTokenSeguridad();
+            $token->id_usuario = $nuevoUser->id_usuario;
+            $token->txt_token = Utils::generateToken('seg_');
+
+            if(!$token->save()){
+                throw new HttpException(400, "No se pudo guardar el token de seguridad");
+            }
+
             return $nuevoUser;
         }else{
             throw new HttpException(400, "No se pudo guardar al usuario");
@@ -1254,6 +1295,14 @@ class ApiController extends Controller
             
             if(!$relUsuarios->save()){
                 throw new HttpException(400, "No se guardo relacion entre usuarios");
+            }
+
+            $token = new CatTokenSeguridad();
+            $token->id_usuario = $nuevoUser->id_usuario;
+            $token->txt_token = Utils::generateToken('seg_');
+
+            if(!$token->save()){
+                throw new HttpException(400, "No se pudo guardar el token de seguridad");
             }
 
             return $nuevoUser;
