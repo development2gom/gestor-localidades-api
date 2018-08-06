@@ -68,7 +68,9 @@ class ApiController extends Controller
 
             'usuarios' => ['GET', 'HEAD'],
             'crear-usuario' => ['POST'],
-            'editar-usuario' => ['PUT', 'PATCH'],            
+            'editar-usuario' => ['PUT', 'PATCH'],
+            'bloquear-usuario' => ['PUT', 'PATCH'],
+            'activar-usuario' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -1342,6 +1344,54 @@ class ApiController extends Controller
                 return $dataProvider;
             }else{
                 throw new HttpException(400, "No tienes permiso para editar usuarios");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionBloquearUsuario($token = null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                $user->id_status = ModUsuariosEntUsuarios::STATUS_BLOCKED;
+                if(!$user->save()){
+                    throw new HttpException(400, "No se pudo bloquear al usuario");                    
+                }
+
+                return $user;
+            }else{
+                throw new HttpException(400, "No existe el usuario que se quiere bloquear");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionActivarUsuario($token=null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                $user->id_status = ModUsuariosEntUsuarios::STATUS_ACTIVED;
+                if(!$user->save()){
+                    throw new HttpException(400, "No se pudo activar al usuario");                    
+                }
+
+                return $user;
+            }else{
+                throw new HttpException(400, "No existe el usuario que se quiere activar");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
