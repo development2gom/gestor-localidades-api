@@ -28,6 +28,8 @@ use app\models\WrkTareasArchivadas;
 use app\models\WrkUsuariosTareasArchivadas;
 use app\models\WrkUsuariosLocalidadesArchivadas;
 use yii\helpers\Url;
+use app\models\CatPorcentajeRentaAbogados;
+use app\models\UsuariosSearch;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -64,8 +66,11 @@ class ApiController extends Controller
             'descargar-archivo' => ['GET', 'HEAD'],
             'descargar-archivo-archivada' => ['GET', 'HEAD'],
 
-            //'crear-usuario' => ['POST'],
-            'crear-usuario' => ['GET', 'HEAD'],
+            'usuarios' => ['GET', 'HEAD'],
+            'crear-usuario' => ['POST'],
+            'editar-usuario' => ['PUT', 'PATCH'],
+            'bloquear-usuario' => ['PUT', 'PATCH'],
+            'activar-usuario' => ['PUT', 'PATCH'],
         ];
     }
 
@@ -1086,15 +1091,307 @@ class ApiController extends Controller
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2])->one();
 
             if($user){
-                /**
-                 * Si el usuario es super-admin
-                 */
-                if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
-                    $hijos = $auth->getChildRoles($user->txt_auth_item);
-                    print_r($hijos);
+                $nuevoUser = new ModUsuariosEntUsuarios();
+                
+                if($nuevoUser->load($request->bodyParams, "")){
+                    /**
+                     * Asignar un passworg al usuario
+                     */
+                    $nuevoUser->password = $nuevoUser->randomPassword();
+                    $nuevoUser->repeatPassword = $nuevoUser->password;
+                    
+
+
+                    /**
+                     * Si el usuario que hace la peticion es SUPER-ADMIN
+                     */
+                    if($user->txt_auth_item == ConstantesWeb::SUPER_ADMIN){
+                        /**
+                         * Si el usuario a crear es abogado
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::ABOGADO){
+                            
+                            /**
+                             * Guardar usuario
+                             */
+                            if($usuario = $nuevoUser->signup()){
+                                //$nuevoUser->enviarEmailBienvenida();
+
+                                /**
+                                 * Guardar porcentaje de abogado
+                                 */
+                                $porcentajeRenta = new CatPorcentajeRentaAbogados();
+                                $porcentajeRenta->id_usuario = $nuevoUser->id_usuario;
+                                $porcentajeRenta->num_porcentaje = 10;
+                                
+                                if(!$porcentajeRenta->save()){
+                                    throw new HttpException(400, "No se pudo guardar el procentaje del usuario");
+                                }
+
+                                return $nuevoUser;
+                            }else{
+                                throw new HttpException(400, "No se pudo guardar al usuario");
+                            }
+                        }else{
+                            throw new HttpException(400, "No puedes crear otro tipo de usuarios");
+                        }
+
+
+
+                    /**
+                     * Si el usuario que hace la peticion es ABOGADO
+                     */    
+                    }else if($user->txt_auth_item == ConstantesWeb::ABOGADO){
+                        /**
+                         * Si el usuario a crear es asistente o director juridico
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::ASISTENTE || $nuevoUser->txt_auth_item == ConstantesWeb::CLIENTE){
+                            
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            return $this->guardarUsuario($nuevoUser);
+                        
+
+                        /**
+                         * Si el usuario a crear es colaborador
+                         */
+                        }else if($nuevoUser->txt_auth_item == ConstantesWeb::COLABORADOR){
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            return $this->guardarUsuarioPadre($nuevoUser, $request);
+                        }else{
+                            throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
+                        }
+
+
+                    /**
+                     * Si el usuario que hace la peticion es ASISTENTE
+                     */ 
+                    }else if($user->txt_auth_item == ConstantesWeb::ASISTENTE){
+                         /**
+                         * Si el usuario a crear es director juridico
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::CLIENTE){
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            return $this->guardarUsuario($nuevoUser);
+                            
+
+                        /**
+                         * Si el usuario a crear es colaborador
+                         */
+                        }else if($nuevoUser->txt_auth_item == ConstantesWeb::COLABORADOR){
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            return $this->guardarUsuarioPadre($nuevoUser, $request);
+                        }else{
+                            throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
+                        }
+
+                    /**
+                     * Si el usuario que hace la peticion es DIRECTOR
+                     */ 
+                    }else if($user->txt_auth_item == ConstantesWeb::CLIENTE){
+                        /**
+                         * Si el usuario a crear es colaborador
+                         */
+                        if($nuevoUser->txt_auth_item == ConstantesWeb::COLABORADOR){
+                            /**
+                             * Guardar usuario nuevo
+                             */
+                            return $this->guardarUsuario($nuevoUser);
+                        }else{
+                            throw new HttpException(400, "No tienes permiso para crear usuarios");
+                        }
+
+                    }else if($user->txt_auth_item == ConstantesWeb::COLABORADOR){
+                        throw new HttpException(400, "No tienes permiso para crear usuarios");
+                    }else{
+                        throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
+                    }
+                }else{
+                    throw new HttpException(400, "No tienes permiso para crear usuarios");
                 }
             }else{
                 throw new HttpException(400, "El usuario no existe");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    private function guardarUsuario($nuevoUser){
+        if($usuario = $nuevoUser->signup()){
+            /**
+             * Crear relacion usuario padre y usuario hijo
+             */
+            $relUsuarios = new WrkUsuarioUsuarios();
+            $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
+            $relUsuarios->id_usuario_padre = $user->id_usuario;
+            
+            if(!$relUsuarios->save()){
+                throw new HttpException(400, "No se guardo relacion entre usuarios");
+            }
+
+            return $nuevoUser;
+        }else{
+            throw new HttpException(400, "No se pudo guardar al usuario");
+        }
+    }
+
+    private function guardarUsuarioPadre($nuevoUser, $request){
+        if($usuario = $nuevoUser->signup()){
+            /**
+             * Crear relacion usuario padre y usuario hijo
+             */
+            $relUsuarios = new WrkUsuarioUsuarios();
+            $relUsuarios->id_usuario_hijo =$nuevoUser->id_usuario;
+            $relUsuarios->id_usuario_padre = $request->getBodyParam('usuarioPadre');
+            
+            if(!$relUsuarios->save()){
+                throw new HttpException(400, "No se guardo relacion entre usuarios");
+            }
+
+            return $nuevoUser;
+        }else{
+            throw new HttpException(400, "No se pudo guardar al usuario");
+        }
+    }
+
+    /**
+     * Editar usuarios
+     */
+    public function actionEditarUsuario($token = null, $tokenU = null){
+        $request = Yii::$app->request;
+
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token && $tokenU){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::SUPER_ADMIN])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar usuario que se va a editar
+                 */
+                $userNuevo = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU])->one();
+                if($userNuevo){
+                    if($userNuevo->load($request->bodyParams, "")){
+                        if(!$userNuevo->save()){
+                            throw new HttpException(400, "No se guardo el nuevo usuario");
+                        }
+
+                        return $userNuevo;
+                    }else{
+                        throw new HttpException(400, "No hay datos para editar el usuario");
+                    }
+                }else{
+                    throw new HttpException(400, "No existe el usuario que se quiere editar");
+                }
+            }else{
+                throw new HttpException(400, "No tienes permiso para editar usuarios");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    /**
+     * Mostrar usuarios
+     */
+    public function actionUsuarios($token = null, $page = 0){
+        $auth = Yii::$app->authManager;
+
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::SUPER_ADMIN])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar roles hijos de usuario que hace la peticion
+                 */
+                $hijos = $auth->getChildRoles($user->txt_auth_item);
+                ksort($hijos);
+                unset($hijos[$user->txt_auth_item]);
+
+                /**
+                 * Buscar usuarios hijos de usuario que hace la peticion
+                 */
+                //$usuarios = ModUsuariosEntUsuarios::find()->where(['in', 'txt_auth_item', array_keys($hijos)])->all();
+                  
+                $searchModel = new UsuariosSearch();
+                $searchModel->txt_auth_item = array_keys($hijos);
+                $dataProvider = $searchModel->search(Yii::$app->getRequest()->get(), $page);
+                
+                return $dataProvider;
+            }else{
+                throw new HttpException(400, "No tienes permiso para editar usuarios");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionBloquearUsuario($token = null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                $user->id_status = ModUsuariosEntUsuarios::STATUS_BLOCKED;
+                if(!$user->save()){
+                    throw new HttpException(400, "No se pudo bloquear al usuario");                    
+                }
+
+                return $user;
+            }else{
+                throw new HttpException(400, "No existe el usuario que se quiere bloquear");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionActivarUsuario($token=null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario que hace la peticion
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                $user->id_status = ModUsuariosEntUsuarios::STATUS_ACTIVED;
+                if(!$user->save()){
+                    throw new HttpException(400, "No se pudo activar al usuario");                    
+                }
+
+                return $user;
+            }else{
+                throw new HttpException(400, "No existe el usuario que se quiere activar");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
