@@ -37,6 +37,8 @@ use yii\filters\auth\HttpBasicAuth;
 use yii\filters\auth\HttpBearerAuth;
 use yii\filters\auth\QueryParamAuth;
 use yii\helpers\ArrayHelper;
+use yii\widgets\ActiveForm;
+use app\models\LoginForm;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -55,6 +57,8 @@ class ApiController extends Controller
     protected function verbs()
     {
         return [
+            'login' => ['POST'],
+
             'localidades' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
             'create' => ['POST'],
@@ -83,21 +87,41 @@ class ApiController extends Controller
     }
 
     public function behaviors()
-{
-    return ArrayHelper::merge(
-        parent::behaviors(), [
-            'authenticator' => [
-                'class' => CompositeAuth::className(),
-                'except' => ['login', 'resetpassword'],
-                'authMethods' => [
-                    HttpBasicAuth::className(),
-                    HttpBearerAuth::className(),
-                    QueryParamAuth::className(),
+    {
+        return ArrayHelper::merge(
+            parent::behaviors(), [
+                'authenticator' => [
+                    'class' => CompositeAuth::className(),
+                    'except' => ['login', 'resetpassword'],
+                    'authMethods' => [
+                        HttpBasicAuth::className(),
+                        HttpBearerAuth::className(),
+                        QueryParamAuth::className(),
+                    ],
                 ],
-            ],
-        ]
-    );
-}
+            ]
+        );
+    }
+
+    public function actionLogin(){
+        $request = Yii::$app->request;
+
+        $model = new LoginForm();
+		$model->scenario = 'login';
+
+		if ($model->load($request->bodyParams, "")) {
+            //echo "dsfdf";
+			ActiveForm::validate($model);
+		}
+
+		if($model->load($request->bodyParams, "")){
+            if($model->login()){
+                $user = ModUsuariosEntUsuarios::findByEmail($model->username);
+
+                return $user;
+            }
+		}
+    }
 
     /**
      * Mostrar localidades segun el tipo de usuario
