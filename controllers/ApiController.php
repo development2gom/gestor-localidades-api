@@ -30,6 +30,16 @@ use app\models\WrkUsuariosLocalidadesArchivadas;
 use yii\helpers\Url;
 use app\models\CatPorcentajeRentaAbogados;
 use app\models\UsuariosSearch;
+use app\models\CatTokenSeguridad;
+
+use yii\filters\auth\CompositeAuth;
+use yii\filters\auth\HttpBasicAuth;
+use yii\filters\auth\HttpBearerAuth;
+use yii\filters\auth\QueryParamAuth;
+use yii\helpers\ArrayHelper;
+use yii\widgets\ActiveForm;
+use app\models\LoginForm;
+use yii\web\Response;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -40,6 +50,7 @@ class ApiController extends Controller
         'class' => 'app\components\SerializerExtends',
         'collectionEnvelope' => 'items',
     ];
+    private $seguridad = true;
 
     /**
      * {@inheritdoc}
@@ -47,6 +58,8 @@ class ApiController extends Controller
     protected function verbs()
     {
         return [
+            'login' => ['POST'],
+
             'localidades' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
             'create' => ['POST'],
@@ -72,6 +85,86 @@ class ApiController extends Controller
             'bloquear-usuario' => ['PUT', 'PATCH'],
             'activar-usuario' => ['PUT', 'PATCH'],
         ];
+    }
+
+    public function behaviors()
+    {
+        return ArrayHelper::merge(
+            parent::behaviors(), [
+                'authenticator' => [
+                    'class' => CompositeAuth::className(),
+                    'except' => ['login', 'resetpassword'],
+                    'authMethods' => [
+                        HttpBasicAuth::className(),
+                        HttpBearerAuth::className(),
+                        QueryParamAuth::className(),
+                    ],
+                ],
+            ]
+        );
+    }
+
+    /**
+     * EJEMPLO DE CURL CON HEADERS PARA AUTENTIFICACION
+     * curl -H "Content-type:application/json" -H "Authorization: Bearer usr260f29f837a575a57b3dcc4baa206e4b5aabf426d89"
+     * "http://localhost/gestor-localidades-api/web/api/bloquear-usuario?token=usr2d551f91aef895993ee7d77d7354162f5b685b949ff21" -X PUT
+     */
+
+    public function beforeAction($action){
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request;
+
+        if($this->seguridad){
+            if(($action->id == "login") || ($action->id == "mandar-password")){
+                return parent::beforeAction($action);                                
+            }else{
+                if(isset($request->headers['authorization'])){
+                    $tokenUser = explode(" ", $request->headers['authorization']);//print_r($tokenUser[1]);exit;
+                    $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenUser[1]])->one();
+                    if($user){
+                        $fechaSeg = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
+                        if($fechaSeg){
+                            $hoy = date('Y-m-d H:i');
+                            if($fechaSeg->fch_limite < $hoy){
+                                throw new HttpException(400, "Es necesario volverse a loguear");
+                            }
+    
+                            return parent::beforeAction($action);
+                        }
+                    }
+                }else{
+                    throw new HttpException(400, "Falta autentificación");
+                }
+            }
+        }else{
+            return parent::beforeAction($action);
+        }
+   }
+
+    public function actionLogin(){
+        $request = Yii::$app->request;
+
+        $model = new LoginForm();
+		$model->scenario = 'login';
+
+		if ($model->load($request->bodyParams, "")) {
+            
+			ActiveForm::validate($model);
+		}
+
+		if($model->load($request->bodyParams, "")){
+            if($model->login()){
+                $user = ModUsuariosEntUsuarios::findByEmail($model->username);
+
+                $fechaActual = date('Y-m-d H:i');
+                $semana = date("Y-m-d H:i", strtotime($fechaActual . '+7 day'));
+                $seguridad = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
+                $seguridad->fch_limite = $semana;
+                $seguridad->save();
+
+                return $user;
+            }
+		}
     }
 
     /**
@@ -1128,6 +1221,16 @@ class ApiController extends Controller
                                     throw new HttpException(400, "No se pudo guardar el procentaje del usuario");
                                 }
 
+                                $token = new CatTokenSeguridad();
+
+                                $fechaActual = date('Y-m-d H:i');
+                                $token->fch_limite = $fechaActual;
+                                $token->id_usuario = $nuevoUser->id_usuario;
+
+                                if(!$token->save()){
+                                    throw new HttpException(400, "No se pudo guardar el token de seguridad");
+                                }
+
                                 return $nuevoUser;
                             }else{
                                 throw new HttpException(400, "No se pudo guardar al usuario");
@@ -1237,6 +1340,15 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se guardo relacion entre usuarios");
             }
 
+            $token = new CatTokenSeguridad();
+            $fechaActual = date('Y-m-d H:i');
+            $token->fch_limite = $fechaActual;
+            $token->id_usuario = $nuevoUser->id_usuario;
+
+            if(!$token->save()){
+                throw new HttpException(400, "No se pudo guardar el token de seguridad");
+            }
+
             return $nuevoUser;
         }else{
             throw new HttpException(400, "No se pudo guardar al usuario");
@@ -1254,6 +1366,15 @@ class ApiController extends Controller
             
             if(!$relUsuarios->save()){
                 throw new HttpException(400, "No se guardo relacion entre usuarios");
+            }
+
+            $token = new CatTokenSeguridad();
+            $fechaActual = date('Y-m-d H:i');
+            $token->fch_limite = $fechaActual;
+            $token->id_usuario = $nuevoUser->id_usuario;
+
+            if(!$token->save()){
+                throw new HttpException(400, "No se pudo guardar el token de seguridad");
             }
 
             return $nuevoUser;

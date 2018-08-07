@@ -27,12 +27,53 @@ class LoginForm extends Model
     {
         return [
             // username and password are both required
-            [['username', 'password'], 'required'],
+            [ 
+                    [ 
+                            'username',
+                            'password' 
+                    ],
+                    'required',
+                    'on' => 'login',
+                    'message'=>'Campo requerido' 
+            ],
+            // username es requerido para recuperar la contraseña
+            [ 
+                    [ 
+                            'username' 
+                    ],
+                    'required',
+                    'on' => 'recovery',
+                    'message'=>'Campo requerido' 
+            ],
+            [ 
+                    [ 
+                            'username' 
+                    ],
+                    'validateUsuario',
+                    'on' => 'recovery',
+            ],
+            [ 
+                    [ 
+                            'username',
+                            'password' 
+                    ],
+                    'trim' 
+            ],
+            ['username','email', 'message'=>'Debe agregar un email válido'],
+            ['username','validateBlocked'],
+            
             // rememberMe must be a boolean value
-            ['rememberMe', 'boolean'],
+            [ 
+                    'rememberMe',
+                    'boolean' 
+            ],
             // password is validated by validatePassword()
-            ['password', 'validatePassword'],
-        ];
+            [ 
+                    'password',
+                    'validatePassword',
+                    'on' => 'login' 
+            ] 
+    ];
     }
 
     /**
@@ -54,6 +95,36 @@ class LoginForm extends Model
     }
 
     /**
+	 * Validates the password.
+	 * This method serves as the inline validation for password.
+	 *
+	 * @param string $attribute
+	 *        	the attribute currently being validated
+	 * @param array $params
+	 *        	the additional name-value pairs given in the rule
+	 */
+	public function validateBlocked($attribute, $params) {
+		if (! $this->hasErrors ()) {
+			$user = $this->getUser ();
+			
+			if ($user && $user->id_status == ModUsuariosEntUsuarios::STATUS_BLOCKED) {
+				$this->addError ( $attribute, 'El usuario ha sido bloqueado.' );
+			}
+		}
+	}
+	
+	/**
+	 * Valida que el usuario exista
+	 */
+	public function validateUsuario($attribute, $params) {
+		$this->userEncontrado = $this->getUser ();
+		
+		if (empty($this->userEncontrado)) {
+			$this->addError ( $attribute, 'No existe una cuenta asociada al corro electronico ingresado.' );
+		}
+	}
+
+    /**
      * Logs in a user using the provided username and password.
      * @return bool whether the user is logged in successfully
      */
@@ -73,7 +144,7 @@ class LoginForm extends Model
     public function getUser()
     {
         if ($this->_user === false) {
-            $this->_user = User::findByUsername($this->username);
+            $this->_user = ModUsuariosEntUsuarios::findByEmail($this->username);
         }
 
         return $this->_user;
