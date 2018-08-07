@@ -262,6 +262,15 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord implements IdentityInt
         return $this->hasMany(WrkTareasArchivadas::className(), ['id_tarea' => 'id_tarea'])->viaTable('wrk_usuarios_tareas_archivadas', ['id_usuario' => 'id_usuario']);
     }
 
+    /**
+	 * Obtiene el nombre completo del usuario
+	 *
+	 * @return string
+	 */
+	public function getNombreCompleto() {
+		return $this->txt_username . ' ' . $this->txt_apellido_paterno . ' ' . $this->txt_apellido_materno;
+	}
+
     public function getUsuariosHijos(){
         $relHijos = WrkUsuarioUsuarios::find()->where(['id_usuario_padre'=>$this->id_usuario])->all();
         

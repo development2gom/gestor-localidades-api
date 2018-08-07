@@ -40,6 +40,7 @@ use yii\helpers\ArrayHelper;
 use yii\widgets\ActiveForm;
 use app\models\LoginForm;
 use yii\web\Response;
+use app\models\ModUsuariosEntUsuariosCambioPass;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -93,7 +94,7 @@ class ApiController extends Controller
             parent::behaviors(), [
                 'authenticator' => [
                     'class' => CompositeAuth::className(),
-                    'except' => ['login', 'resetpassword'],
+                    'except' => ['login', 'peticion-pass'],
                     'authMethods' => [
                         HttpBasicAuth::className(),
                         HttpBearerAuth::className(),
@@ -115,7 +116,7 @@ class ApiController extends Controller
         $request = Yii::$app->request;
 
         if($this->seguridad){
-            if(($action->id == "login") || ($action->id == "mandar-password")){
+            if(($action->id == "login") || ($action->id == "peticion-pass")){
                 return parent::beforeAction($action);                                
             }else{
                 if(isset($request->headers['authorization'])){
@@ -165,6 +166,36 @@ class ApiController extends Controller
                 return $user;
             }
 		}
+    }
+
+    public function actionPeticionPass(){
+        $request = Yii::$app->request;
+
+        $model = new LoginForm ();
+        $model->scenario = 'recovery';
+        
+		if ($model->load($request->bodyParams, "") && $model->validate()){
+			
+			$peticionPass = new ModUsuariosEntUsuariosCambioPass();
+			
+			$peticionPass->saveUsuarioPeticion ( $model->userEncontrado->id_usuario );
+			$user = $peticionPass->idUsuario;
+			
+			// Enviar correo de activación
+			$utils = new Utils();
+			// Parametros para el email
+			$parametrosEmail ['url'] = ConstantesDropbox::URL_EMAILS . 'cambiar-pass/' . $peticionPass->txt_token;
+			$parametrosEmail ['user'] = $user->getNombreCompleto ();
+			
+			// Envio de correo electronico
+			if($utils->sendEmailRecuperarPassword($user->txt_email, $parametrosEmail)){
+                throw new HttpException(200, "Se ha enviado un correo eléctronico a '".$user->txt_email."' con instrucciones para recuperar tu contraseña");
+            }else{
+                throw new HttpException(400, "No se pudo mandar el email");
+            }
+		}else{
+            throw new HttpException(400, "Usuario no encontrado");
+        }
     }
 
     /**
