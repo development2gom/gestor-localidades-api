@@ -1263,7 +1263,7 @@ class ApiController extends Controller
                              * Guardar usuario
                              */
                             if($usuario = $nuevoUser->signup()){
-                                //$nuevoUser->enviarEmailBienvenida();
+                                $nuevoUser->enviarEmailBienvenida();
 
                                 /**
                                  * Guardar porcentaje de abogado
@@ -1384,6 +1384,8 @@ class ApiController extends Controller
 
     private function guardarUsuario($nuevoUser){
         if($usuario = $nuevoUser->signup()){
+            $nuevoUser->enviarEmailBienvenida();
+
             /**
              * Crear relacion usuario padre y usuario hijo
              */
@@ -1412,6 +1414,8 @@ class ApiController extends Controller
 
     private function guardarUsuarioPadre($nuevoUser, $request){
         if($usuario = $nuevoUser->signup()){
+            $nuevoUser->enviarEmailBienvenida();
+
             /**
              * Crear relacion usuario padre y usuario hijo
              */
