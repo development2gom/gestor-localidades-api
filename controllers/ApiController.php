@@ -104,6 +104,12 @@ class ApiController extends Controller
         );
     }
 
+    /**
+     * EJEMPLO DE CURL CON HEADERS PARA AUTENTIFICACION
+     * curl -H "Content-type:application/json" -H "Authorization: Bearer usr260f29f837a575a57b3dcc4baa206e4b5aabf426d89"
+     * "http://localhost/gestor-localidades-api/web/api/bloquear-usuario?token=usr2d551f91aef895993ee7d77d7354162f5b685b949ff21" -X PUT
+     */
+
     public function beforeAction($action){
         Yii::$app->response->format = Response::FORMAT_JSON;
         $request = Yii::$app->request;
