@@ -898,20 +898,33 @@ class ApiController extends Controller
                          * Eliminar la relacion existente
                          */
                         $rel->delete(); 
+                    }
+                    /**
+                     * Crear una nueva relacion colaborador/tarea y guardar
+                     */
+                    $nuevaRel = new WrkUsuariosTareas();
+                    $nuevaRel->id_usuario = $user->id_usuario;
+                    $nuevaRel->id_tarea = $tarea->id_tarea;
+
+                    if($nuevaRel->save()){
+                        $abogado = $tarea->usuario;
+                        $loc = $tarea->localidad;
+
+                        // Enviar correo
+                        $utils = new Utils();
+                        // Parametros para el email
+                        $parametrosEmail['tarea'] = $tarea->txt_nombre;
+                        $parametrosEmail['loc'] = $loc->txt_nombre;
+                        $parametrosEmail['user'] = $user->getNombreCompleto();
+                        $parametrosEmail['abogado'] = $abogado->getNombreCompleto();
+                        $parametrosEmail['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index/?token=' . $user->txt_token . '&tokenLoc=' . $loc->txt_token;
+                        
+                        // Envio de correo electronico
+                        $utils->sendEmailAsignacionTarea($user->txt_email, $parametrosEmail);
+
+                        return $tarea->localidad;
                     }else{
-                        /**
-                         * Crear una nueva relacion colaborador/tarea y guardar
-                         */
-                        $nuevaRel = new WrkUsuariosTareas();
-                        $nuevaRel->id_usuario = $user->id_usuario;
-                        $nuevaRel->id_tarea = $tarea->id_tarea;
-
-                        if($nuevaRel->save()){
-
-                            return $tarea->localidad;
-                        }else{
-                            throw new HttpException(400, "No se pudo guardar la relacion entre usuario y tarea");
-                        }
+                        throw new HttpException(400, "No se pudo guardar la relacion entre usuario y tarea");
                     }
                 }else{
                     throw new HttpException(400, "La tarea no existe");
