@@ -60,6 +60,7 @@ class ApiController extends Controller
     {
         return [
             'login' => ['POST'],
+            'peticion-pass' => ['POST'],
 
             'localidades' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
@@ -718,7 +719,17 @@ class ApiController extends Controller
             $relUserLocalidad->id_usuario = $user->id_usuario;
 
             if($relUserLocalidad->save()){
+                
+                // Enviar correo
+                $utils = new Utils();
+                // Parametros para el email
+                $parametrosEmail['localidad'] = $localidad->txt_nombre;
+                $parametrosEmail['user'] = $user->getNombreCompleto();
+                $parametrosEmail['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index/?token=' . $user->txt_token;
 
+                // Envio de correo electronico
+                $utils->sendEmailAsignacion($user->txt_email, $parametrosEmail);
+                
                 return $localidad;
             }else{
                 throw new HttpException(400, "No se pudo guardar la relacion");
