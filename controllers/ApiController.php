@@ -39,6 +39,7 @@ use yii\filters\auth\QueryParamAuth;
 use yii\helpers\ArrayHelper;
 use yii\widgets\ActiveForm;
 use app\models\LoginForm;
+use yii\web\Response;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -103,6 +104,37 @@ class ApiController extends Controller
         );
     }
 
+    public function beforeAction($action){
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $request = Yii::$app->request;
+
+        if($this->seguridad){
+            if(($action->id == "login") || ($action->id == "mandar-password")){
+                return parent::beforeAction($action);                                
+            }else{
+                if(isset($request->headers['authorization'])){
+                    $tokenUser = explode(" ", $request->headers['authorization']);//print_r($tokenUser[1]);exit;
+                    $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenUser[1]])->one();
+                    if($user){
+                        $fechaSeg = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
+                        if($fechaSeg){
+                            $hoy = date('Y-m-d H:i');
+                            if($fechaSeg->fch_limite < $hoy){
+                                throw new HttpException(400, "Es necesario volverse a loguear");
+                            }
+    
+                            return parent::beforeAction($action);
+                        }
+                    }
+                }else{
+                    throw new HttpException(400, "Falta autentificación");
+                }
+            }
+        }else{
+            return parent::beforeAction($action);
+        }
+   }
+
     public function actionLogin(){
         $request = Yii::$app->request;
 
@@ -110,13 +142,19 @@ class ApiController extends Controller
 		$model->scenario = 'login';
 
 		if ($model->load($request->bodyParams, "")) {
-            //echo "dsfdf";
+            
 			ActiveForm::validate($model);
 		}
 
 		if($model->load($request->bodyParams, "")){
             if($model->login()){
                 $user = ModUsuariosEntUsuarios::findByEmail($model->username);
+
+                $fechaActual = date('Y-m-d H:i');
+                $semana = date("Y-m-d H:i", strtotime($fechaActual . '+7 day'));
+                $seguridad = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
+                $seguridad->fch_limite = $semana;
+                $seguridad->save();
 
                 return $user;
             }
@@ -1178,8 +1216,10 @@ class ApiController extends Controller
                                 }
 
                                 $token = new CatTokenSeguridad();
+
+                                $fechaActual = date('Y-m-d H:i');
+                                $token->fch_limite = $fechaActual;
                                 $token->id_usuario = $nuevoUser->id_usuario;
-                                $token->txt_token = Utils::generateToken('seg_');
 
                                 if(!$token->save()){
                                     throw new HttpException(400, "No se pudo guardar el token de seguridad");
@@ -1295,8 +1335,9 @@ class ApiController extends Controller
             }
 
             $token = new CatTokenSeguridad();
+            $fechaActual = date('Y-m-d H:i');
+            $token->fch_limite = $fechaActual;
             $token->id_usuario = $nuevoUser->id_usuario;
-            $token->txt_token = Utils::generateToken('seg_');
 
             if(!$token->save()){
                 throw new HttpException(400, "No se pudo guardar el token de seguridad");
@@ -1322,8 +1363,9 @@ class ApiController extends Controller
             }
 
             $token = new CatTokenSeguridad();
+            $fechaActual = date('Y-m-d H:i');
+            $token->fch_limite = $fechaActual;
             $token->id_usuario = $nuevoUser->id_usuario;
-            $token->txt_token = Utils::generateToken('seg_');
 
             if(!$token->save()){
                 throw new HttpException(400, "No se pudo guardar el token de seguridad");
