@@ -97,7 +97,7 @@ class ApiController extends Controller
             parent::behaviors(), [
                 'authenticator' => [
                     'class' => CompositeAuth::className(),
-                    'except' => ['login', 'peticion-pass'],
+                    'except' => ['login', 'peticion-pass', 'descargar-archivo', 'descargar-archivo-archivada'],
                     'authMethods' => [
                         HttpBasicAuth::className(),
                         HttpBearerAuth::className(),
@@ -119,7 +119,7 @@ class ApiController extends Controller
         $request = Yii::$app->request;
 
         if($this->seguridad){
-            if(($action->id == "login") || ($action->id == "peticion-pass")){
+            if(($action->id == "login") || ($action->id == "peticion-pass") || ($action->id == "descargar-archivo") || ($action->id == "descargar-archivo-archivada")){
                 return parent::beforeAction($action);                                
             }else{
                 if(isset($request->headers['authorization'])){
@@ -848,9 +848,10 @@ class ApiController extends Controller
             /**
              * Buscar usuario que sea abogado, asistente o director
              */
-            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
-                ->orWhere(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
-                ->orWhere(['txt_token'=>$tokenU, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::CLIENTE])
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::CLIENTE])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::SUPER_ADMIN])
                 ->one();
 
             if($user){
@@ -1326,7 +1327,7 @@ class ApiController extends Controller
                             /**
                              * Guardar usuario nuevo
                              */
-                            return $this->guardarUsuario($nuevoUser);
+                            return $this->guardarUsuario($nuevoUser, $user);
                         
 
                         /**
@@ -1353,7 +1354,7 @@ class ApiController extends Controller
                             /**
                              * Guardar usuario nuevo
                              */
-                            return $this->guardarUsuario($nuevoUser);
+                            return $this->guardarUsuario($nuevoUser, $user);
                             
 
                         /**
@@ -1400,7 +1401,7 @@ class ApiController extends Controller
         }
     }
 
-    private function guardarUsuario($nuevoUser){
+    private function guardarUsuario($nuevoUser, $user){
         if($usuario = $nuevoUser->signup()){
             $nuevoUser->enviarEmailBienvenida();
 
@@ -1554,7 +1555,7 @@ class ApiController extends Controller
          */
         if($token){
             /**
-             * Buscar usuario que hace la peticion
+             * Buscar usuario que se va a bloquear
              */
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
             if($user){
@@ -1578,7 +1579,7 @@ class ApiController extends Controller
          */
         if($token){
             /**
-             * Buscar usuario que hace la peticion
+             * Buscar usuario que se va a activar
              */
             $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
             if($user){

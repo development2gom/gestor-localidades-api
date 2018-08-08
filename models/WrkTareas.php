@@ -158,7 +158,7 @@ class WrkTareas extends \yii\db\ActiveRecord
 
     public function getUsuarioResponsableTarea()
     {
-        $rel = wrkUsuariosTareas::find()->where(['id_tarea'=>$this->id_tarea])->one();
+        $rel = WrkUsuariosTareas::find()->where(['id_tarea'=>$this->id_tarea])->one();
         
         if($rel){
             $userResp = ModUsuariosEntUsuarios::find()->where(['id_usuario'=>$rel->id_usuario])->one();
@@ -178,7 +178,7 @@ class WrkTareas extends \yii\db\ActiveRecord
          */
         $fields[] = 'usuarioResponsableTarea';
 
-        unset($fields['id_tarea']);
+        //unset($fields['id_tarea']);
 
         return $fields;
     }
