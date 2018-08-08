@@ -76,6 +76,7 @@ class ApiController extends Controller
             'remover-usuario-tarea' => ['DELETE'],
             'responder-tarea' => ['POST'],
             'completar-tarea' => ['PUT', 'PATCH'],
+            'eliminar-tarea' => ['PUT', 'PATCH'],
             'archivar-localidad' => ['PUT', 'PATCH'],
             'desarchivar-localidad' => ['PUT', 'PATCH'],
             'descargar-archivo' => ['GET', 'HEAD'],
