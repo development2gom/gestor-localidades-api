@@ -6,6 +6,7 @@ use Yii;
 use yii\web\UploadedFile;
 use app\models\AuthItem;
 use yii\web\IdentityInterface;
+use app\config\ConstantesDropbox;
 
 /**
  * This is the model class for table "mod_usuarios_ent_usuarios".
@@ -380,22 +381,21 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord implements IdentityInt
     public function enviarEmailBienvenida(){
 		
 		// Parametros para el email
-		$params ['url'] = Yii::$app->urlManager->createAbsoluteUrl ( [ 
-			'ingresar/' . $this->txt_token 
-		] );
+		$params ['url'] = ConstantesDropbox::URL_EMAILS . 'ingresar/' . $this->txt_token;
 		$params ['user'] = $this->nombreCompleto;
 		$params ['usuario'] = $this->txt_email;
 		$params ['password'] = $this->password;
 		
         $email = new Email();
-        $email->emailHtml = "@app/modules/ModUsuarios/email/bienvenida";
-        $email->emailText = "@app/modules/ModUsuarios/email/layouts/text";
+        $email->emailHtml = "@app/mail/bienvenida";
+        $email->emailText = "@app/mail/layouts/text";
         $email->to = $this->txt_email;
         $email->subject = "Bienvenido";
         $email->params =$params ;
         
         // Envio de correo electronico
         $email->sendEmail();
+
         return true;
     }
     
@@ -491,5 +491,5 @@ class ModUsuariosEntUsuarios extends \yii\db\ActiveRecord implements IdentityInt
 	 */
 	public function validatePassword($password) {
 		return Yii::$app->security->validatePassword ( $password, $this->txt_password_hash );
-	}
+    }
 }

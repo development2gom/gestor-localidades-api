@@ -52,6 +52,7 @@ class ApiController extends Controller
         'collectionEnvelope' => 'items',
     ];
     private $seguridad = true;
+    private $usuarioLogueado;
 
     /**
      * {@inheritdoc}
@@ -60,6 +61,7 @@ class ApiController extends Controller
     {
         return [
             'login' => ['POST'],
+            'peticion-pass' => ['POST'],
 
             'localidades' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
@@ -85,6 +87,7 @@ class ApiController extends Controller
             'editar-usuario' => ['PUT', 'PATCH'],
             'bloquear-usuario' => ['PUT', 'PATCH'],
             'activar-usuario' => ['PUT', 'PATCH'],
+            'reenviar-email-bienvenida' => ['GET', 'HEAD'],
         ];
     }
 
@@ -123,6 +126,7 @@ class ApiController extends Controller
                     $tokenUser = explode(" ", $request->headers['authorization']);//print_r($tokenUser[1]);exit;
                     $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenUser[1]])->one();
                     if($user){
+                        $usuarioLogueado = $user;
                         $fechaSeg = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
                         if($fechaSeg){
                             $hoy = date('Y-m-d H:i');
@@ -718,7 +722,17 @@ class ApiController extends Controller
             $relUserLocalidad->id_usuario = $user->id_usuario;
 
             if($relUserLocalidad->save()){
+                
+                // Enviar correo
+                $utils = new Utils();
+                // Parametros para el email
+                $parametrosEmail['localidad'] = $localidad->txt_nombre;
+                $parametrosEmail['user'] = $user->getNombreCompleto();
+                $parametrosEmail['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index/?token=' . $user->txt_token;
 
+                // Envio de correo electronico
+                $utils->sendEmailAsignacion($user->txt_email, $parametrosEmail);
+                
                 return $localidad;
             }else{
                 throw new HttpException(400, "No se pudo guardar la relacion");
@@ -887,20 +901,33 @@ class ApiController extends Controller
                          * Eliminar la relacion existente
                          */
                         $rel->delete(); 
+                    }
+                    /**
+                     * Crear una nueva relacion colaborador/tarea y guardar
+                     */
+                    $nuevaRel = new WrkUsuariosTareas();
+                    $nuevaRel->id_usuario = $user->id_usuario;
+                    $nuevaRel->id_tarea = $tarea->id_tarea;
+
+                    if($nuevaRel->save()){
+                        $abogado = $tarea->usuario;
+                        $loc = $tarea->localidad;
+
+                        // Enviar correo
+                        $utils = new Utils();
+                        // Parametros para el email
+                        $parametrosEmail['tarea'] = $tarea->txt_nombre;
+                        $parametrosEmail['loc'] = $loc->txt_nombre;
+                        $parametrosEmail['user'] = $user->getNombreCompleto();
+                        $parametrosEmail['abogado'] = $abogado->getNombreCompleto();
+                        $parametrosEmail['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index/?token=' . $user->txt_token . '&tokenLoc=' . $loc->txt_token;
+                        
+                        // Envio de correo electronico
+                        $utils->sendEmailAsignacionTarea($user->txt_email, $parametrosEmail);
+
+                        return $tarea->localidad;
                     }else{
-                        /**
-                         * Crear una nueva relacion colaborador/tarea y guardar
-                         */
-                        $nuevaRel = new WrkUsuariosTareas();
-                        $nuevaRel->id_usuario = $user->id_usuario;
-                        $nuevaRel->id_tarea = $tarea->id_tarea;
-
-                        if($nuevaRel->save()){
-
-                            return $tarea->localidad;
-                        }else{
-                            throw new HttpException(400, "No se pudo guardar la relacion entre usuario y tarea");
-                        }
+                        throw new HttpException(400, "No se pudo guardar la relacion entre usuario y tarea");
                     }
                 }else{
                     throw new HttpException(400, "La tarea no existe");
@@ -1036,7 +1063,22 @@ class ApiController extends Controller
                  */
                 $tarea->fch_actualizacion = date("Y-m-d H:i:s");
                 if($tarea->save()){
+                    $userActual = $usuarioLogueado;
+                    $user = $tarea->usuario;
+                    $localidad = $tarea->localidad;
+
+                    // Enviar correo
+                    $utils = new Utils ();
+                    // Parametros para el email
+                    $parametrosEmail ['localidad'] = $localidad;
+                    $parametrosEmail ['tarea'] = $tarea->txt_nombre;
+                    $parametrosEmail ['user'] = $user->getNombreCompleto ();
+                    $parametrosEmail ['userActual'] = $userActual->getNombreCompleto ();
+                    $parametrosEmail ['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index?token=' . $user->txt_token . '&tokenLoc=' . $localidad->txt_token;
                     
+                    // Envio de correo electronico
+                    $utils->sendEmailCargaTareas( $user->txt_email,$parametrosEmail );
+
                     return $localidad;
                 }
             }else{
@@ -1239,7 +1281,7 @@ class ApiController extends Controller
                              * Guardar usuario
                              */
                             if($usuario = $nuevoUser->signup()){
-                                //$nuevoUser->enviarEmailBienvenida();
+                                $nuevoUser->enviarEmailBienvenida();
 
                                 /**
                                  * Guardar porcentaje de abogado
@@ -1360,6 +1402,8 @@ class ApiController extends Controller
 
     private function guardarUsuario($nuevoUser){
         if($usuario = $nuevoUser->signup()){
+            $nuevoUser->enviarEmailBienvenida();
+
             /**
              * Crear relacion usuario padre y usuario hijo
              */
@@ -1388,6 +1432,8 @@ class ApiController extends Controller
 
     private function guardarUsuarioPadre($nuevoUser, $request){
         if($usuario = $nuevoUser->signup()){
+            $nuevoUser->enviarEmailBienvenida();
+
             /**
              * Crear relacion usuario padre y usuario hijo
              */
@@ -1544,6 +1590,37 @@ class ApiController extends Controller
                 return $user;
             }else{
                 throw new HttpException(400, "No existe el usuario que se quiere activar");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionReenviarEmailBienvenida($token = null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario para mandar email
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                /**
+                 * Cambiar password
+                 */
+                $user->password = $user->randomPassword();
+                $user->setPassword($user->password);
+
+                if($user->save()){
+                    $user->enviarEmailBienvenida();
+                    
+                    throw new HttpException(200, "Se ha enviado un email al usuario");
+                }else{
+                    throw new HttpException(400, "No se pudo mandar el email al usuario");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no existe");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
