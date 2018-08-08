@@ -52,6 +52,7 @@ class ApiController extends Controller
         'collectionEnvelope' => 'items',
     ];
     private $seguridad = true;
+    private $usuarioLogueado;
 
     /**
      * {@inheritdoc}
@@ -125,6 +126,7 @@ class ApiController extends Controller
                     $tokenUser = explode(" ", $request->headers['authorization']);//print_r($tokenUser[1]);exit;
                     $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenUser[1]])->one();
                     if($user){
+                        $usuarioLogueado = $user;
                         $fechaSeg = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
                         if($fechaSeg){
                             $hoy = date('Y-m-d H:i');
@@ -1061,7 +1063,22 @@ class ApiController extends Controller
                  */
                 $tarea->fch_actualizacion = date("Y-m-d H:i:s");
                 if($tarea->save()){
+                    $userActual = $usuarioLogueado;
+                    $user = $tarea->usuario;
+                    $localidad = $tarea->localidad;
+
+                    // Enviar correo
+                    $utils = new Utils ();
+                    // Parametros para el email
+                    $parametrosEmail ['localidad'] = $localidad;
+                    $parametrosEmail ['tarea'] = $tarea->txt_nombre;
+                    $parametrosEmail ['user'] = $user->getNombreCompleto ();
+                    $parametrosEmail ['userActual'] = $userActual->getNombreCompleto ();
+                    $parametrosEmail ['url'] = ConstantesDropbox::URL_EMAILS . 'localidades/index?token=' . $user->txt_token . '&tokenLoc=' . $localidad->txt_token;
                     
+                    // Envio de correo electronico
+                    $utils->sendEmailCargaTareas( $user->txt_email,$parametrosEmail );
+
                     return $localidad;
                 }
             }else{
