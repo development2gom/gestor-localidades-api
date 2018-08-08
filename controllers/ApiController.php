@@ -860,7 +860,12 @@ class ApiController extends Controller
                     if($tarea->load($request->bodyParams, "")){
                         if($tarea->save()){
 
+                            return $tarea->localidad;
+                        }else{
+                            throw new HttpException(400, "No se pudo editar el nombre de la tarea");
                         }
+                    }else{
+                        throw new HttpException(400, "No hay datos para editar la tarea");
                     }
                 }else{
                     throw new HttpException(400, "La tarea no existe");
@@ -1391,7 +1396,7 @@ class ApiController extends Controller
                         throw new HttpException(400, "El usuario debe de tener un rol para crearlo");
                     }
                 }else{
-                    throw new HttpException(400, "No tienes permiso para crear usuarios");
+                    throw new HttpException(400, "No hay datos para crear al usuario");
                 }
             }else{
                 throw new HttpException(400, "El usuario no existe");
