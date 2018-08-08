@@ -86,6 +86,7 @@ class ApiController extends Controller
             'editar-usuario' => ['PUT', 'PATCH'],
             'bloquear-usuario' => ['PUT', 'PATCH'],
             'activar-usuario' => ['PUT', 'PATCH'],
+            'reenviar-email-bienvenida' => ['GET', 'HEAD'],
         ];
     }
 
@@ -1572,6 +1573,37 @@ class ApiController extends Controller
                 return $user;
             }else{
                 throw new HttpException(400, "No existe el usuario que se quiere activar");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionReenviarEmailBienvenida($token = null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            /**
+             * Buscar usuario para mandar email
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token])->one();
+            if($user){
+                /**
+                 * Cambiar password
+                 */
+                $user->password = $user->randomPassword();
+                $user->setPassword($user->password);
+
+                if($user->save()){
+                    $user->enviarEmailBienvenida();
+                    
+                    throw new HttpException(200, "Se ha enviado un email al usuario");
+                }else{
+                    throw new HttpException(400, "No se pudo mandar el email al usuario");
+                }
+            }else{
+                throw new HttpException(400, "El usuario no existe");
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");

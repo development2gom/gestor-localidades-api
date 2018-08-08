@@ -13,7 +13,7 @@ class Email{
 	
 
 	function __construct() {
-		$this->from = Yii::$app->params ['modUsuarios'] ['email'] ['emailActivacion']; 
+		$this->from = Yii::$app->params ['usuarios'] ['email'] ['emailActivacion']; 
 	}
 
 	/**
