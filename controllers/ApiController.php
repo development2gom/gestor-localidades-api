@@ -260,7 +260,7 @@ class ApiController extends Controller
                     /**
                      * Verificar si trae los parametros 
                      */
-                    if($model->load($request->bodyParams, "")  && $model->validate()){ //print_r($request->bodyParams);exit;
+                    if($model->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;
                         if($estatus->load($request->bodyParams, "") && $estatus->validate()){
 
                             /**
