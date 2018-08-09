@@ -154,21 +154,30 @@ class ApiController extends Controller
 		if ($model->load($request->bodyParams, "")) {
             
 			ActiveForm::validate($model);
-		}
+		}else{
+            throw new HttpException(400, "No hay parametros para hacer la peticion");
+
+        }
 
 		if($model->load($request->bodyParams, "")){
             if($model->login()){
                 $user = ModUsuariosEntUsuarios::findByEmail($model->username);
+                if($user){
 
-                $fechaActual = date('Y-m-d H:i');
-                $semana = date("Y-m-d H:i", strtotime($fechaActual . '+7 day'));
-                $seguridad = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
-                $seguridad->fch_limite = $semana;
-                $seguridad->save();
+                    $fechaActual = date('Y-m-d H:i');
+                    $semana = date("Y-m-d H:i", strtotime($fechaActual . '+7 day'));
+                    $seguridad = CatTokenSeguridad::find()->where(['id_usuario'=>$user->id_usuario])->one();
+                    $seguridad->fch_limite = $semana;
+                    $seguridad->save();
 
-                return $user;
+                    return $user;
+                }else{
+                    throw new HttpException(400, "No se encontro el usuario");
+                }
             }
-		}
+		}else{
+            throw new HttpException(400, "No hay parametros para hacer la peticion");
+        }
     }
 
     public function actionPeticionPass(){
