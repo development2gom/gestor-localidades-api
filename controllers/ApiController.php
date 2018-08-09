@@ -820,22 +820,22 @@ class ApiController extends Controller
                 $localidad = EntLocalidades::find()->where(['cms'=>$cms])->one();
                 if($localidad){
                     $model = new WrkTareas();
-                    
-                    if($model->load($request->bodyParams, "")){
-                        /**
-                         * Asignar valores a la localidad que no estan en los params
-                         */
-                        $hoy = Utils::getFechaActual();
-                        $model->fch_creacion = $hoy;
-                        $model->id_localidad = $localidad->id_localidad;
-                        $model->id_usuario = $user->id_usuario;
+                    /**
+                     * Asignar valores a la tarea que no estan en los params
+                     */
+                    $hoy = Utils::getFechaActual();
+                    $model->fch_creacion = $hoy;
+                    $model->id_localidad = $localidad->id_localidad;
+                    $model->id_usuario = $user->id_usuario;
 
+                    if($model->load($request->bodyParams, "") && $model->validate()){
                         if($model->save()){
                             
                             return $localidad;
                         }
                     }else{
-                        throw new HttpException(400, "No hay datos para crear la tarea");
+                        return $model;
+                        // throw new HttpException(400, "No hay datos para crear la tarea");
                     }
                 }else{
                     throw new HttpException(400, "No existe la localidad");
