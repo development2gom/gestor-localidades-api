@@ -871,11 +871,12 @@ class ApiController extends Controller
                 $tarea = WrkTareas::find()->where(['id_tarea'=>$id])->one();
                 if($tarea){
                     if($tarea->load($request->bodyParams, "")){
-                        if($tarea->save()){
+                        if($tarea->validate() && $tarea->save()){
 
                             return $tarea->localidad;
                         }else{
-                            throw new HttpException(400, "No se pudo editar el nombre de la tarea");
+                            return $tarea;
+                            // throw new HttpException(400, "No se pudo editar el nombre de la tarea");
                         }
                     }else{
                         throw new HttpException(400, "No hay datos para editar la tarea");
@@ -1081,7 +1082,7 @@ class ApiController extends Controller
                  * Actualizar fecha y guardar tarea
                  */
                 $tarea->fch_actualizacion = date("Y-m-d H:i:s");
-                if($tarea->save()){
+                if($tarea->validate() && $tarea->save()){
                     $user = $tarea->usuario;
                     $localidad = $tarea->localidad;
 
@@ -1098,6 +1099,8 @@ class ApiController extends Controller
                     $utils->sendEmailCargaTareas( $user->txt_email,$parametrosEmail );
 
                     return $localidad;
+                }else{
+                    return $tarea;
                 }
             }else{
                 throw new HttpException(400, "La tarea no existe");
@@ -1324,7 +1327,8 @@ class ApiController extends Controller
 
                                 return $nuevoUser;
                             }else{
-                                throw new HttpException(400, "No se pudo guardar al usuario");
+                                return $nuevoUser;
+                                // throw new HttpException(400, "No se pudo guardar al usuario");
                             }
                         }else{
                             throw new HttpException(400, "No puedes crear otro tipo de usuarios");
@@ -1444,7 +1448,8 @@ class ApiController extends Controller
 
             return $nuevoUser;
         }else{
-            throw new HttpException(400, "No se pudo guardar al usuario");
+            return $nuevoUser;
+            // throw new HttpException(400, "No se pudo guardar al usuario");
         }
     }
 
@@ -1474,7 +1479,8 @@ class ApiController extends Controller
 
             return $nuevoUser;
         }else{
-            throw new HttpException(400, "No se pudo guardar al usuario");
+            return $nuevoUser;
+            // throw new HttpException(400, "No se pudo guardar al usuario");
         }
     }
 
@@ -1502,14 +1508,16 @@ class ApiController extends Controller
                  */
                 $userNuevo = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$tokenU])->one();
                 if($userNuevo){
-                    if($userNuevo->load($request->bodyParams, "")){
+                    if($userNuevo->load($request->bodyParams, "") && $userNuevo->validate()){
                         if(!$userNuevo->save()){
-                            throw new HttpException(400, "No se guardo el nuevo usuario");
+                            return $userNuevo;
+                            // throw new HttpException(400, "No se guardo el nuevo usuario");
                         }
 
                         return $userNuevo;
                     }else{
-                        throw new HttpException(400, "No hay datos para editar el usuario");
+                        return $userNuevo;
+                        // throw new HttpException(400, "No hay datos para editar el usuario");
                     }
                 }else{
                     throw new HttpException(400, "No existe el usuario que se quiere editar");
