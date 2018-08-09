@@ -263,20 +263,6 @@ class ApiController extends Controller
                      */
                     if($model->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;
                         /**
-                         * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
-                         */
-                        if(!empty($request->getBodyParam('txt_estatus'))){
-                            $estatus->id_localidad = $model->id_localidad;
-                            if($estatus->load($request->bodyParams, "") && $estatus->validate()){
-                                if(!$estatus->save()) {
-                                    throw new HttpException(400, "No se guardo el estatus de la localidad");                                                                                
-                                }                                 
-                            }else{
-                                return $estatus;
-                            }
-                        }
-
-                        /**
                          * Asignar valores a la localidad que no estan en los params
                          */
                         $hoy = Utils::getFechaActual();
@@ -290,6 +276,7 @@ class ApiController extends Controller
                          * Validar si los datos de la localidad son correctos para crear carpeta en dropbox
                          */
                         if($model->validate()){
+
                             /**
                              * Crear carpeta de dropbox
                              */
@@ -304,6 +291,19 @@ class ApiController extends Controller
                                  * Guardar la localidad en la BD
                                  */
                                 if($model->save()){
+                                    /**
+                                     * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
+                                     */
+                                    if(!empty($request->getBodyParam('txt_estatus'))){
+                                        $estatus->id_localidad = $model->id_localidad;
+                                        if($estatus->load($request->bodyParams, "") && $estatus->validate()){
+                                            if(!$estatus->save()) {
+                                                throw new HttpException(400, "No se guardo el estatus de la localidad");                                                                                
+                                            }                                 
+                                        }else{
+                                            return $estatus;
+                                        }
+                                    }
 
                                     return $model;
                                 }else{
