@@ -151,7 +151,7 @@ class ApiController extends Controller
         $model = new LoginForm();
 		$model->scenario = 'login';
 
-		if($model->load($request->bodyParams, "")){
+		if($model->load($request->bodyParams, "") && $model->validate()){
             $user = ModUsuariosEntUsuarios::findByEmail($model->username);
             if($user){
 
@@ -166,7 +166,7 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se encontro el usuario");
             }
 		}else{
-            throw new HttpException(400, "No hay parametros para hacer la peticion");
+            throw new HttpException(400, $model->errors);
         }
     }
 
