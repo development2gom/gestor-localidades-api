@@ -41,6 +41,7 @@ use yii\widgets\ActiveForm;
 use app\models\LoginForm;
 use yii\web\Response;
 use app\models\ModUsuariosEntUsuariosCambioPass;
+use app\models\EntLocalidadesArchivadasSearch;
 
 /**
  * ConCategoiriesController implements the CRUD actions for ConCategoiries model.
@@ -310,7 +311,7 @@ class ApiController extends Controller
                                     throw new HttpException(400, "No se guardo la localidad");
                                 }
                             }else{
-                                throw new HttpException(400, $decodeDropbox);
+                                throw new HttpException(400, "Error al crear carpeta en dropbox");
                             }
                         }else{
                             return $model;
@@ -1652,12 +1653,31 @@ class ApiController extends Controller
         }
     }
 
-    public function actionLocalidadesArchivadas($token = null){
+    public function actionLocalidadesArchivadas($token = null, $page = 0){
         /**
          * Validar que venga el parametro en la peticion
          */
         if($token){
-            
+            /**
+             * Buscar al usuario con el token
+             */
+            $user = ModUsuariosEntUsuarios::find()->where(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ABOGADO])
+                ->orWhere(['txt_token'=>$token, 'id_status'=>2, 'txt_auth_item'=>ConstantesWeb::ASISTENTE])
+                ->one();
+
+            if($user){
+                /**
+                 * Buscar localidades pasando los parametro de la peticion como parametro de la funcion search
+                 */
+                $searchModel = new EntLocalidadesArchivadasSearch();
+                $dataProvider = $searchModel->search(Yii::$app->getRequest()->get(), $page);
+
+                return $dataProvider;
+            }else{
+                throw new HttpException(400, "El usuario no existe");
+            }
+        }else{
+            throw new HttpException(400, "Se necesitan datos para validar la petición");
         }
     }
 }
