@@ -63,6 +63,7 @@ class ApiController extends Controller
             'peticion-pass' => ['POST'],
 
             'localidades' => ['GET', 'HEAD'],
+            'localidades-archivadas' => ['GET', 'HEAD'],
             'view' => ['GET', 'HEAD'],
             'create' => ['POST'],
             'update' => ['PUT', 'PATCH'],
@@ -261,61 +262,59 @@ class ApiController extends Controller
                      * Verificar si trae los parametros 
                      */
                     if($model->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;
-                        if($estatus->load($request->bodyParams, "") && $estatus->validate()){
+                        /**
+                         * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
+                         */
+                        if(!empty($request->getBodyParam('txt_estatus'))){
+                            $estatus->id_localidad = $model->id_localidad;
+                            if($estatus->load($request->bodyParams, "") && $estatus->validate()){
+                                if(!$estatus->save()) {
+                                    throw new HttpException(400, "No se guardo el estatus de la localidad");                                                                                
+                                }                                 
+                            }else{
+                                return $estatus;
+                            }
+                        }
+
+                        /**
+                         * Asignar valores a la localidad que no estan en los params
+                         */
+                        $hoy = Utils::getFechaActual();
+                        $model->id_usuario = $user->id_usuario;
+                        $model->txt_token = Utils::generateToken('tok');
+                        $model->fch_creacion = $hoy;
+                        $model->fch_vencimiento_contratro = Utils::changeFormatDateInput($model->fch_vencimiento_contratro);
+                        $model->fch_asignacion = Utils::changeFormatDateInput($model->fch_asignacion);
+
+                        /**
+                         * Validar si los datos de la localidad son correctos para crear carpeta en dropbox
+                         */
+                        if($model->validate()){
+                            /**
+                             * Crear carpeta de dropbox
+                             */
+                            $dropbox = Dropbox::crearFolder(ConstantesDropbox::NOMBRE_CARPETA . $model->txt_nombre);
+                            $decodeDropbox = json_decode(trim($dropbox), true);
 
                             /**
-                             * Asignar valores a la localidad que no estan en los params
+                             * Con el indice 'metadata' verificamos que se alla creado la carpeta en dropbox
                              */
-                            $hoy = Utils::getFechaActual();
-                            $model->id_usuario = $user->id_usuario;
-                            $model->txt_token = Utils::generateToken('tok');
-                            $model->fch_creacion = $hoy;
-                            $model->fch_vencimiento_contratro = Utils::changeFormatDateInput($model->fch_vencimiento_contratro);
-                            $model->fch_asignacion = Utils::changeFormatDateInput($model->fch_asignacion);
-
-                            /**
-                             * Validar si los datos de la localidad son correctos para crear carpeta en dropbox
-                             */
-                            if($model->validate()){
+                            if(isset($decodeDropbox['metadata'])){
                                 /**
-                                 * Crear carpeta de dropbox
+                                 * Guardar la localidad en la BD
                                  */
-                                $dropbox = Dropbox::crearFolder(ConstantesDropbox::NOMBRE_CARPETA . $model->txt_nombre);
-                                $decodeDropbox = json_decode(trim($dropbox), true);
+                                if($model->save()){
 
-                                /**
-                                 * Con el indice 'metadata' verificamos que se alla creado la carpeta en dropbox
-                                 */
-                                if(isset($decodeDropbox['metadata'])){
-                                    /**
-                                     * Guardar la localidad en la BD
-                                     */
-                                    if($model->save()){
-                                        /**
-                                         * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
-                                         */
-                                        if(!empty($request->getBodyParam('txt_estatus'))){
-                                            $estatus->id_localidad = $model->id_localidad;
-                                            
-                                            if(!$estatus->save()){
-                                                throw new HttpException(400, "No se guardo el estatus la localidad");                                                                                
-                                            }
-                                        }
-
-                                        return $model;
-                                    }else{
-                                        throw new HttpException(400, "No se guardo la localidad");
-                                    }
+                                    return $model;
                                 }else{
-                                    throw new HttpException(400, $decodeDropbox);
+                                    throw new HttpException(400, "No se guardo la localidad");
                                 }
                             }else{
-                                return $model;
-                                // throw new HttpException(400, "Usuario no disponible");
+                                throw new HttpException(400, $decodeDropbox);
                             }
                         }else{
-                            return $estatus;
-                            // throw new HttpException(400, "No hay datos para procesar la petición");
+                            return $model;
+                            // throw new HttpException(400, "Usuario no disponible");
                         }
                     }else{
                         return $model;
@@ -1650,6 +1649,15 @@ class ApiController extends Controller
             }
         }else{
             throw new HttpException(400, "Se necesitan datos para validar la petición");
+        }
+    }
+
+    public function actionLocalidadesArchivadas($token = null){
+        /**
+         * Validar que venga el parametro en la peticion
+         */
+        if($token){
+            
         }
     }
 }
