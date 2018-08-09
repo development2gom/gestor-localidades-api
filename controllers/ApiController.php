@@ -166,7 +166,8 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se encontro el usuario");
             }
 		}else{
-            throw new HttpException(400, $model->errors);
+            return $model;
+            // throw new HttpException(400, $model->errors);
         }
     }
 
@@ -196,7 +197,8 @@ class ApiController extends Controller
                 throw new HttpException(400, "No se pudo mandar el email");
             }
 		}else{
-            throw new HttpException(400, "Usuario no encontrado");
+            return $model;
+            // throw new HttpException(400, "Usuario no encontrado");
         }
     }
 
@@ -258,59 +260,66 @@ class ApiController extends Controller
                     /**
                      * Verificar si trae los parametros 
                      */
-                    if($model->load($request->bodyParams, "") && $estatus->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;
-
-                        /**
-                         * Asignar valores a la localidad que no estan en los params
-                         */
-                        $hoy = Utils::getFechaActual();
-                        $model->id_usuario = $user->id_usuario;
-                        $model->txt_token = Utils::generateToken('tok');
-                        $model->fch_creacion = $hoy;
-                        $model->fch_vencimiento_contratro = Utils::changeFormatDateInput($model->fch_vencimiento_contratro);
-                        $model->fch_asignacion = Utils::changeFormatDateInput($model->fch_asignacion);
-
-                        /**
-                         * Validar si los datos de la localidad son correctos para crear carpeta en dropbox
-                         */
-                        if($model->validate()){
-                            /**
-                             * Crear carpeta de dropbox
-                             */
-                            $dropbox = Dropbox::crearFolder(ConstantesDropbox::NOMBRE_CARPETA . $model->txt_nombre);
-                            $decodeDropbox = json_decode(trim($dropbox), true);
+                    if($model->load($request->bodyParams, "")  && $model->validate()){ //print_r($request->bodyParams);exit;
+                        if($estatus->load($request->bodyParams, "") && $estatus->validate()){
 
                             /**
-                             * Con el indice 'metadata' verificamos que se alla creado la carpeta en dropbox
+                             * Asignar valores a la localidad que no estan en los params
                              */
-                            if(isset($decodeDropbox['metadata'])){
+                            $hoy = Utils::getFechaActual();
+                            $model->id_usuario = $user->id_usuario;
+                            $model->txt_token = Utils::generateToken('tok');
+                            $model->fch_creacion = $hoy;
+                            $model->fch_vencimiento_contratro = Utils::changeFormatDateInput($model->fch_vencimiento_contratro);
+                            $model->fch_asignacion = Utils::changeFormatDateInput($model->fch_asignacion);
+
+                            /**
+                             * Validar si los datos de la localidad son correctos para crear carpeta en dropbox
+                             */
+                            if($model->validate()){
                                 /**
-                                 * Guardar la localidad en la BD
+                                 * Crear carpeta de dropbox
                                  */
-                                if($model->save()){
-                                    /**
-                                     * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
-                                     */
-                                    if(!empty($request->getBodyParam('txt_estatus'))){
-                                        $estatus->id_localidad = $model->id_localidad;
-                                        
-                                        if(!$estatus->save()){
-                                            throw new HttpException(400, "No se guardo el estatus la localidad");                                                                                
-                                        }
-                                    }
+                                $dropbox = Dropbox::crearFolder(ConstantesDropbox::NOMBRE_CARPETA . $model->txt_nombre);
+                                $decodeDropbox = json_decode(trim($dropbox), true);
 
-                                    return $model;
+                                /**
+                                 * Con el indice 'metadata' verificamos que se alla creado la carpeta en dropbox
+                                 */
+                                if(isset($decodeDropbox['metadata'])){
+                                    /**
+                                     * Guardar la localidad en la BD
+                                     */
+                                    if($model->save()){
+                                        /**
+                                         * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
+                                         */
+                                        if(!empty($request->getBodyParam('txt_estatus'))){
+                                            $estatus->id_localidad = $model->id_localidad;
+                                            
+                                            if(!$estatus->save()){
+                                                throw new HttpException(400, "No se guardo el estatus la localidad");                                                                                
+                                            }
+                                        }
+
+                                        return $model;
+                                    }else{
+                                        throw new HttpException(400, "No se guardo la localidad");
+                                    }
                                 }else{
-                                    throw new HttpException(400, "No se guardo la localidad");
+                                    throw new HttpException(400, $decodeDropbox);
                                 }
                             }else{
-                                throw new HttpException(400, $decodeDropbox);
+                                return $model;
+                                // throw new HttpException(400, "Usuario no disponible");
                             }
                         }else{
-                            throw new HttpException(400, "Usuario no disponible");
+                            return $estatus;
+                            // throw new HttpException(400, "No hay datos para procesar la petición");
                         }
                     }else{
-                        throw new HttpException(400, "No hay datos para procesar la petición");
+                        return $model;
+                        // throw new HttpException(400, "No hay datos para procesar la petición");
                     }
                 }else{
                     throw new HttpException(400, "El usuario no tiene permisos");
@@ -373,28 +382,32 @@ class ApiController extends Controller
                         /**
                          * Verificar si trae los parametros 
                          */
-                        if($model->load($request->bodyParams, "") && $estatus->load($request->bodyParams, "")){ //print_r($request->bodyParams);exit;    
+                        if($model->load($request->bodyParams, "") && $model->validate()){ //print_r($model);exit; 
+                            /**
+                             * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
+                             */
+                            if(!empty($request->getBodyParam('txt_estatus'))){
+                                $estatus->id_localidad = $model->id_localidad;
+                                if($estatus->load($request->bodyParams, "") && $estatus->validate()){
+                                    if(!$estatus->save()) {
+                                        throw new HttpException(400, "No se guardo el estatus de la localidad");                                                                                
+                                    }                                 
+                                }else{
+                                    return $estatus;
+                                }
+                            }
                             /**
                              * Guardar la localidad en la BD
                              */
-                            if($model->save()){
-                                /**
-                                 * Verificar si en params esta el parametro 'txt_estatus' para crear un estatus de la localidad
-                                 */
-                                if(!empty($request->getBodyParam('txt_estatus'))){
-                                    $estatus->id_localidad = $model->id_localidad;
-                                    
-                                    if(!$estatus->save()) {
-                                        throw new HttpException(400, "No se guardo el estatus la localidad");                                                                                
-                                    }
-                                }
-                                
+                            if(!$model->save()){
                                 return $model;
-                            }else{
-                                throw new HttpException(400, "No se guardo la localidad");
+                                // throw new HttpException(400, "No se guardo la localidad");
                             }
+
+                            return $model;
                         }else{
-                            throw new HttpException(400, "No hay datos para procesar la petición");
+                            return $model;
+                            // throw new HttpException(400, "No hay datos para procesar la petición");
                         }
                     }else{
                         throw new HttpException(400, "No se encontro la localidad");
